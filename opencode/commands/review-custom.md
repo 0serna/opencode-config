@@ -40,6 +40,7 @@ From changed lines only, collect candidate issues with:
 Run one `general` agent task per candidate. Require it to:
 
 - read full source file (not only diff)
+- cite only line numbers that appear in the file content it reads
 - read related tests/imports/exports/interfaces/config as needed
 - verify whether issue is introduced by current changes
 - verify whether duplicated code is introduced and creates real maintenance risk
@@ -52,7 +53,7 @@ Required verdict format per candidate:
 - Evidence
 - Fix
 
-If evidence is weak/speculative or not tied to changed code, mark `DISCARDED`.
+If evidence is weak/speculative, not tied to changed code, or the exact location cannot be verified, mark `DISCARDED`.
 
 ### 3) Report only important confirmed findings
 
@@ -79,7 +80,7 @@ Return this exact format:
 
 ### 1. **Title**
 
-**Where:** <path/to/file:line>
+**Where:** <path/to/file:line-range>
 **Evidence:** <evidence>
 **Fix:** <fix>
 
