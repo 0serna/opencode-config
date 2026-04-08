@@ -16,7 +16,8 @@ npm test            # Test suite
 
 ```
 opencode/
-├── opencode.jsonc  # https://opencode.ai/docs/config/
+├── opencode.jsonc  # https://opencode.ai/docs/config/#server
+├── tui.jsonc       # https://opencode.ai/docs/config/#tui
 ├── AGENTS.md       # https://opencode.ai/docs/rules/
 ├── agents/         # https://opencode.ai/docs/agents/
 ├── commands/       # https://opencode.ai/docs/commands/
