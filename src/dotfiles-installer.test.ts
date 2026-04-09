@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { ConfigInstaller } from "./installer";
+import { DotfilesInstaller } from "./dotfiles-installer";
 
 let tmpDir: string;
 
@@ -28,7 +28,7 @@ async function createRepo(files: Record<string, string>, manifest: unknown) {
   return { repoDir, homeDir };
 }
 
-describe("ConfigInstaller", () => {
+describe("DotfilesInstaller", () => {
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "test-"));
   });
@@ -51,7 +51,7 @@ describe("ConfigInstaller", () => {
       ],
     );
 
-    const installer = new ConfigInstaller(repoDir, homeDir);
+    const installer = new DotfilesInstaller(repoDir, homeDir);
     const success = await installer.install();
 
     expect(success).toBe(true);
@@ -85,7 +85,7 @@ describe("ConfigInstaller", () => {
       ],
     );
 
-    const installer = new ConfigInstaller(repoDir, homeDir);
+    const installer = new DotfilesInstaller(repoDir, homeDir);
     const success = await installer.install();
 
     expect(success).toBe(false);
@@ -99,7 +99,7 @@ describe("ConfigInstaller", () => {
 
     await fs.writeFile(path.join(homeDir, "keep.txt"), "keep");
 
-    const installer = new ConfigInstaller(repoDir, homeDir);
+    const installer = new DotfilesInstaller(repoDir, homeDir);
     const success = await installer.install();
 
     expect(success).toBe(false);
@@ -119,7 +119,7 @@ describe("ConfigInstaller", () => {
       ],
     );
 
-    const installer = new ConfigInstaller(repoDir, homeDir);
+    const installer = new DotfilesInstaller(repoDir, homeDir);
     const success = await installer.install();
 
     expect(success).toBe(true);
@@ -171,7 +171,7 @@ describe("ConfigInstaller", () => {
       "old",
     );
 
-    const installer = new ConfigInstaller(repoDir, homeDir);
+    const installer = new DotfilesInstaller(repoDir, homeDir);
     const success = await installer.install();
 
     expect(success).toBe(false);
@@ -214,7 +214,7 @@ describe("ConfigInstaller", () => {
       ),
     );
 
-    const installer = new ConfigInstaller(repoDir, homeDir);
+    const installer = new DotfilesInstaller(repoDir, homeDir);
     const success = await installer.install();
 
     expect(success).toBe(false);
@@ -236,7 +236,7 @@ describe("ConfigInstaller", () => {
     await fs.mkdir(targetPath, { recursive: true });
     await fs.writeFile(path.join(targetPath, "opencode.jsonc"), "old");
 
-    const installer = new ConfigInstaller(repoDir, homeDir);
+    const installer = new DotfilesInstaller(repoDir, homeDir);
     const success = await installer.install();
 
     expect(success).toBe(true);
@@ -256,7 +256,7 @@ describe("ConfigInstaller", () => {
     await fs.mkdir(repoDir, { recursive: true });
     await fs.mkdir(homeDir, { recursive: true });
 
-    const installer = new ConfigInstaller(repoDir, homeDir);
+    const installer = new DotfilesInstaller(repoDir, homeDir);
     const success = await installer.install();
 
     expect(success).toBe(false);

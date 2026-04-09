@@ -1,6 +1,6 @@
 # Dotfiles
 
-Generic dotfiles repository for [OpenCode](https://opencode.ai/docs) and other tools. The `dotfiles.json` manifest links repo files into system locations.
+Generic dotfiles repository for agents and tools. The `dotfiles.json` manifest links repo files into system locations.
 
 ## Commands
 
@@ -15,13 +15,13 @@ npm test            # Test suite
 ## Structure
 
 ```
-dotfiles/
+./
+├── dotfiles.json               # Manifest
+├── src/
+│   └── dotfiles-installer.ts   # Linker script
 └── opencode/
-    ├── opencode.jsonc  # https://opencode.ai/docs/config/#server
-    ├── tui.jsonc       # https://opencode.ai/docs/config/#tui
-    ├── AGENTS.md       # https://opencode.ai/docs/rules/
-    └── commands/       # https://opencode.ai/docs/commands/
-dotfiles.json          # Manifest
-src/
-└── installer.ts       # Linker script
+    ├── opencode.jsonc          # https://opencode.ai/docs/config/#server
+    ├── tui.jsonc               # https://opencode.ai/docs/config/#tui
+    ├── AGENTS.md               # https://opencode.ai/docs/rules/
+    └── commands/               # https://opencode.ai/docs/commands/
 ```
