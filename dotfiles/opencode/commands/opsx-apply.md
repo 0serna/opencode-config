@@ -1,6 +1,5 @@
 ---
 description: Implement tasks from an OpenSpec change (Experimental)
-model: openai/gpt-5.4-mini
 ---
 
 Implement tasks from an OpenSpec change.

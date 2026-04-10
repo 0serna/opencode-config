@@ -1,6 +1,5 @@
 ---
 description: Archive a completed change in the experimental workflow
-model: openai/gpt-5.4-mini
 ---
 
 Archive a completed change in the experimental workflow.
