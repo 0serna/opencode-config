@@ -1,5 +1,6 @@
 ---
 description: Generate commit for staged changes
+model: openai/gpt-5.4-mini
 ---
 
 ## Task
