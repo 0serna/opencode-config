@@ -2,5 +2,9 @@
   {
     "source": "dotfiles/opencode",
     "target": "~/.config/opencode"
+  },
+  {
+    "source": "dotfiles/agents",
+    "target": "~/.agents"
   }
 ]

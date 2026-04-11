@@ -7,6 +7,10 @@ The system SHALL read a root `dotfiles.json` manifest and create symlinks for ea
 - **WHEN** the installer runs with a valid `dotfiles.json`
 - **THEN** it creates symlinks for every entry in the manifest
 
+#### Scenario: Include the repo-backed agent home directory
+- **WHEN** the repository manifest is read after tracking global agent skills
+- **THEN** it includes an entry mapping `dotfiles/agents` to `~/.agents`
+
 ### Requirement: Source paths stay within the repository
 The system SHALL resolve each `source` relative to the repository root and reject any source that escapes the repository.
 

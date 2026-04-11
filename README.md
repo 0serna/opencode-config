@@ -17,11 +17,13 @@ npm test            # Test suite
 ```
 ./
 ├── dotfiles.json               # Manifest
+├── dotfiles/
+│   ├── agents/                 # Repo-backed ~/.agents tree
+│   │   └── skills/             # Global skills managed by skills.sh
+│   └── opencode/               # OpenCode config, commands, rules, skills
 ├── src/
 │   └── dotfiles-installer.ts   # Linker script
-└── opencode/
-    ├── opencode.jsonc          # https://opencode.ai/docs/config/#server
-    ├── tui.jsonc               # https://opencode.ai/docs/config/#tui
-    ├── AGENTS.md               # https://opencode.ai/docs/rules/
-    └── commands/               # https://opencode.ai/docs/commands/
+└── ...
 ```
+
+`~/.agents` is linked to `dotfiles/agents`, so global `skills.sh` operations update tracked files in this repository. For now, only `skills/` is managed under that tree.
