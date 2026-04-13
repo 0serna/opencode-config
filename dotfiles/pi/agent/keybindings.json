@@ -1,0 +1,8 @@
+{
+  "app.clear": "ctrl+d",
+  "app.session.new": "ctrl+n",
+  "app.model.cycleForward": "tab",
+  "tui.input.copy": "ctrl+c",
+  "tui.input.tab": [],
+  "tui.select.cancel": ["escape"]
+}
