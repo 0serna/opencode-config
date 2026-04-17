@@ -1,13 +1,27 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "small_model": "opencode/big-pickle",
-  "model": "openai/gpt-5.4-mini",
+  "model": "openai/gpt-5.4",
   "agent": {
+    "main": { "color": "primary" },
     "plan": { "disable": true },
     "build": { "disable": true },
-    "main": { "color": "primary" },
-    "explore": { "model": "openai/gpt-5.4-mini" },
-    "general": { "model": "openai/gpt-5.4-mini" }
+    "explore": { "disable": true }
+  },
+  "provider": {
+    "openai": {
+      "models": {
+        "gpt-5.4": {
+          "variants": {
+            "high": { "reasoningEffort": "high" },
+            "none": { "disabled": true },
+            "low": { "disabled": true },
+            "medium": { "disabled": true },
+            "xhigh": { "disabled": true }
+          }
+        }
+      }
+    }
   },
   "mcp": {
     "chrome-devtools": {
@@ -44,6 +58,7 @@
       "curl * DELETE *": "ask",
       // git
       "git *": "ask",
+      "git clone *": "allow",
       "git help *": "allow",
       "git status *": "allow",
       "git diff *": "allow",
@@ -82,5 +97,6 @@
       "chmod *": "ask",
       "chown *": "ask"
     }
-  }
+  },
+  "lsp": false
 }

@@ -19,3 +19,7 @@
 ## Documentation
 
 - Use `find-docs` skill for up-to-date docs when the user asks about libraries, frameworks, SDKs, APIs, CLIs, or cloud services.
+
+## Verification
+
+- After finishing edits, always run the project's configured check commands when available, such as lint, format, and build.
