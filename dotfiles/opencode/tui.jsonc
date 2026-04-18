@@ -6,7 +6,7 @@
     "input_clear": "ctrl+d",
     "session_new": "ctrl+n",
     "session_list": "ctrl+l",
-    "variant_cycle": "tab",
+    "model_cycle_favorite": "tab",
     "model_list": "shift+tab",
     "command_list": "f2",
     "messages_undo": "ctrl+u",

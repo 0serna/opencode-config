@@ -1,7 +1,7 @@
 ---
 description: Generate commit for staged changes
-model: openai/gpt-5.4-mini
 subtask: true
+model: opencode-go/qwen3.5-plus
 ---
 
 ## Task
