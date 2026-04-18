@@ -1,6 +1,7 @@
 ---
 description: Generate commit for staged changes
 model: openai/gpt-5.4-mini
+subtask: true
 ---
 
 ## Task
@@ -18,11 +19,14 @@ Create a concise, factual commit message from staged changes and run the commit.
 4. Execute `git commit` using the generated message.
 5. Output rules:
    - If commit succeeds, print only:
-     - `Commit successful`
-     - `<final committed message>`
+     ```text
+     Commit successful
+     `<final committed message>`
+     ```
    - If commit fails, print:
-     - `Commit failed: <git error output>`
-     - `Cause: <brief factual cause inferred from the error output>`
+     ```text
+     Commit failed: <brief factual cause inferred from the error output>
+     ```
    - On failure, do not attempt to fix, retry, amend, or run additional corrective commands unless the user explicitly asks.
 
 ## Message rules
