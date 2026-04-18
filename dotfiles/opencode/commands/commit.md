@@ -1,7 +1,7 @@
 ---
 description: Generate commit for staged changes
 subtask: true
-model: opencode-go/qwen3.5-plus
+model: opencode-go/minimax-m2.5
 ---
 
 ## Task

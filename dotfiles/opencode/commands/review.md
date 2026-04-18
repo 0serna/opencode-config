@@ -1,6 +1,6 @@
 ---
 description: Code review changes or pull requests
-model: opencode-go/glm-5.1
+model: opencode-go/qwen3.6-plus
 ---
 
 ## Input
