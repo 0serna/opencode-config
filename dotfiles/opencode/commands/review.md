@@ -1,6 +1,5 @@
 ---
 description: Code review changes or pull requests
-model: opencode-go/qwen3.6-plus
 ---
 
 ## Input

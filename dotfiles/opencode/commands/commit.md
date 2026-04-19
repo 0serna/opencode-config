@@ -1,7 +1,7 @@
 ---
 description: Generate commit for staged changes
-subtask: true
 model: opencode-go/minimax-m2.5
+subtask: true
 ---
 
 ## Task
