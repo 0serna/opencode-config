@@ -106,7 +106,7 @@
       "enableToast": false,
       "showSessionTokens": false,
       "enabledProviders": "auto",
-      "formatStyle": "grouped",
+      "formatStyle": "classic",
       "percentDisplayMode": "used"
     }
   }
