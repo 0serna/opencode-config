@@ -2,11 +2,21 @@
   "$schema": "https://opencode.ai/config.json",
   "model": "opencode-go/qwen3.6-plus",
   "agent": {
-    "main": { "color": "primary" },
-    "explore": { "model": "opencode-go/qwen3.6-plus" },
-    "general": { "model": "opencode-go/qwen3.6-plus" },
-    "plan": { "disable": true },
-    "build": { "disable": true }
+    "main": {
+      "color": "primary"
+    },
+    "explore": {
+      "model": "opencode-go/qwen3.6-plus"
+    },
+    "general": {
+      "model": "opencode-go/qwen3.6-plus"
+    },
+    "plan": {
+      "disable": true
+    },
+    "build": {
+      "disable": true
+    }
   },
   "mcp": {
     "context7": {
@@ -89,5 +99,15 @@
       "chown *": "ask"
     }
   },
-  "lsp": false
+  "lsp": false,
+  "plugin": ["@slkiser/opencode-quota"],
+  "experimental": {
+    "quotaToast": {
+      "enableToast": false,
+      "showSessionTokens": false,
+      "enabledProviders": "auto",
+      "formatStyle": "grouped",
+      "percentDisplayMode": "used"
+    }
+  }
 }
