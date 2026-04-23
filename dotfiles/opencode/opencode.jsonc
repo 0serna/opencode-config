@@ -1,9 +1,15 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "opencode-go/kimi-k2.6",
+  "model": "opencode-go/mimo-v2.5-pro",
   "agent": {
     "main": {
       "color": "primary"
+    },
+    "explore": {
+      "model": "opencode-go/mimo-v2.5-pro"
+    },
+    "general": {
+      "model": "opencode-go/mimo-v2.5-pro"
     },
     "plan": {
       "disable": true
@@ -37,12 +43,34 @@
     "doom_loop": "ask",
     "bash": {
       "*": "allow",
+      // help
       "* --help": "allow",
       "* -h": "allow",
       "* --version": "allow",
       "* -v": "allow",
+      // system
+      "chmod *": "ask",
+      "chown *": "ask",
       // dependencies
-      "* install *": "ask",
+      "apt install *": "ask",
+      "apt update *": "ask",
+      "apt upgrade *": "ask",
+      "apt-get install *": "ask",
+      "apt-get update *": "ask",
+      "apt-get upgrade *": "ask",
+      "npm install *": "ask",
+      "npm update *": "ask",
+      "npm upgrade *": "ask",
+      "npm add *": "ask",
+      "brew install *": "ask",
+      "brew update *": "ask",
+      "brew upgrade *": "ask",
+      "pip install *": "ask",
+      "pip update *": "ask",
+      "pip upgrade *": "ask",
+      "pip3 install *": "ask",
+      "pip3 update *": "ask",
+      "pip3 upgrade *": "ask",
       // http
       "wget *": "ask",
       "curl *": "allow",
@@ -87,10 +115,7 @@
       "gh api * POST *": "ask",
       "gh api * PUT *": "ask",
       "gh api * PATCH *": "ask",
-      "gh api * DELETE *": "ask",
-      // system
-      "chmod *": "ask",
-      "chown *": "ask"
+      "gh api * DELETE *": "ask"
     }
   },
   "lsp": false,

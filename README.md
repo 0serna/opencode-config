@@ -4,7 +4,7 @@ Personal dotfiles repository for agents and tools. The `dotfiles.json` manifest 
 
 ## Commands
 
-```
+```bash
 npm run link        # Link dotfiles
 npm run check       # Lint and format check
 npm run format      # Format code
@@ -14,7 +14,7 @@ npm test            # Test suite
 
 ## Structure
 
-```
+```text
 ./
 ├── dotfiles.json               # Manifest
 ├── dotfiles/

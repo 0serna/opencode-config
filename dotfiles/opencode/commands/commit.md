@@ -1,7 +1,5 @@
 ---
 description: Generate commit for staged changes
-model: opencode-go/minimax-m2.7
-subtask: true
 ---
 
 ## Arguments
@@ -21,7 +19,7 @@ Create a concise, factual commit message from staged changes and run the commit.
 ## Rules
 
 - On failure, do not retry, amend, or run corrective commands unless the user asks.
-- Format commit messages as `[type][scope]: [description]` plus an optional body.
+- Format commit messages as `[type]([scope]): [description]` plus an optional body.
 - Use one of these types: `feat|fix|refactor|docs|style|test|ci|build|chore|perf`.
 - Scope is optional; if present, use modules or domains clearly defined in the project.
 - Body is optional; if present, add one blank line after the subject.

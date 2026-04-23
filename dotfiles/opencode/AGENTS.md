@@ -1,6 +1,6 @@
 ## Communication
 
-- Keep your answers brief unless more detail is needed to avoid ambiguity or support a decision.
+- Keep your answers brief and focused.
 - Use the `question` tool whenever presenting options or decisions to the user.
 
 ## Project Exploration
