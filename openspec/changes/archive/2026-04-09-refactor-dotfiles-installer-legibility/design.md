@@ -5,11 +5,13 @@ The current installer implementation combines manifest loading, entry validation
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Improve readability by separating responsibilities.
 - Rename the main installer type to better match the dotfiles domain.
 - Keep the manifest format, validation rules, and runtime behavior unchanged.
 
 **Non-Goals:**
+
 - No new features or validation rules.
 - No changes to the dotfiles manifest schema.
 - No packaging, dependency, or runtime changes.

@@ -39,17 +39,17 @@ Choose the safest valid path:
 8. After each successful commit, continue only with the remaining changes that clearly belong to another already-identified group.
 9. Output rules:
    - If one commit succeeds, print only:
-      - `Commit successful`
-      - `[final committed message]`
+     - `Commit successful`
+     - `[final committed message]`
    - If multiple commits succeed, print only:
-      - `Commits successful`
-      - one line per committed message in execution order
+     - `Commits successful`
+     - one line per committed message in execution order
    - If the operation stops because grouping is ambiguous, print:
-      - `Commit plan required`
-      - a short proposed grouping list
+     - `Commit plan required`
+     - a short proposed grouping list
    - If a commit fails, print:
-      - `Commit failed: [git error output]`
-      - `Cause: [brief factual cause inferred from the error output]`
+     - `Commit failed: [git error output]`
+     - `Cause: [brief factual cause inferred from the error output]`
    - On failure, do not attempt to fix, retry, amend, push, or run additional corrective commands unless the user explicitly asks.
 
 ## Message rules

@@ -13,9 +13,11 @@ The repository is currently tied to OpenCode-specific configuration syncing. Tur
 ## Capabilities
 
 ### New Capabilities
+
 - `generic-dotfiles`: manage arbitrary dotfiles/tool configurations through a manifest-driven symlink workflow.
 
 ### Modified Capabilities
+
 - None.
 
 ## Impact

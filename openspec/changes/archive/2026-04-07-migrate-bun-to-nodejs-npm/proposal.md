@@ -13,9 +13,11 @@ This project currently depends on Bun for script execution, testing, and hooks, 
 ## Capabilities
 
 ### New Capabilities
+
 - `nodejs-runtime-tooling`: Run installer scripts, tests, and developer workflows with Node.js and npm instead of Bun.
 
 ### Modified Capabilities
+
 - None.
 
 ## Impact

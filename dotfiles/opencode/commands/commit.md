@@ -30,14 +30,14 @@ Create a concise, factual commit message from staged changes and run the commit.
 
 - On success, print:
 
-    ```text
-    Commit successful
-    `[final committed message]`
-    ```
+  ```text
+  Commit successful
+  `[final committed message]`
+  ```
 
 - On failure, print:
 
-    ```text
-    Commit failed
-    [brief factual cause from the error output]
-    ```
+  ```text
+  Commit failed
+  [brief factual cause from the error output]
+  ```

@@ -12,9 +12,11 @@ Global skills installed through `skills.sh` currently live outside this reposito
 ## Capabilities
 
 ### New Capabilities
+
 - `agent-home-directory`: manage the global `~/.agents` directory from this repository, starting with `skills/` as the initial tracked subtree.
 
 ### Modified Capabilities
+
 - `generic-dotfiles`: the shipped dotfiles set will now include a manifest entry for `~/.agents` in addition to the existing OpenCode configuration.
 
 ## Impact

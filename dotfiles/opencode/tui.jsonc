@@ -15,6 +15,6 @@
     "agent_cycle": "none",
     "terminal_suspend": "none",
     "model_cycle_recent": "none",
-    "app_exit": "none"
-  }
+    "app_exit": "none",
+  },
 }

@@ -12,9 +12,11 @@ The dotfiles installer logic is currently concentrated in one file, which makes 
 ## Capabilities
 
 ### New Capabilities
+
 - None.
 
 ### Modified Capabilities
+
 - None.
 
 ## Impact

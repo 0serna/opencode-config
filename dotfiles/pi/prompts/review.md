@@ -29,9 +29,9 @@ Avoid style-only feedback and speculative concerns.
 
 1. Detect the target from `$ARGUMENTS`.
    - If it contains a PR number or PR URL:
-      - Run `gh pr checkout [number]`
-      - Run `gh pr view [number] --json title,body`
-      - Save the diff with `DIFF_FILE=$(mktemp) && gh pr diff [number] > "$DIFF_FILE"`
+     - Run `gh pr checkout [number]`
+     - Run `gh pr view [number] --json title,body`
+     - Save the diff with `DIFF_FILE=$(mktemp) && gh pr diff [number] > "$DIFF_FILE"`
    - If no arguments are provided:
      - Save the local diff with `DIFF_FILE=$(mktemp) && git diff HEAD > "$DIFF_FILE"`
 2. Read the diff file completely. If needed, use `read` in batches.

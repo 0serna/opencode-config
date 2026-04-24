@@ -12,9 +12,11 @@ The current dotfiles linker accepts overly broad `target` paths. A malformed man
 ## Capabilities
 
 ### New Capabilities
+
 - None.
 
 ### Modified Capabilities
+
 - `generic-dotfiles`: target resolution and replacement behavior must be safe against destructive paths.
 
 ## Impact

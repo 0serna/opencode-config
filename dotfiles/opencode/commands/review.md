@@ -23,9 +23,9 @@ $ARGUMENTS
 
 1. Detect review target:
    - If arguments contain PR number/URL:
-      - `gh pr checkout [number]` (mandatory, so verification agents can inspect the checked-out files in full context)
-      - `gh pr view [number] --json title,body`
-      - `gh pr diff [number]`
+     - `gh pr checkout [number]` (mandatory, so verification agents can inspect the checked-out files in full context)
+     - `gh pr view [number] --json title,body`
+     - `gh pr diff [number]`
    - If no arguments:
      - `git diff HEAD`
 2. If diff is empty, output `No changes to review` and STOP.

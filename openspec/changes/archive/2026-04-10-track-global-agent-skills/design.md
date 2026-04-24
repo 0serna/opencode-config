@@ -7,12 +7,14 @@ The existing installer already supports linking arbitrary repo directories into 
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Make global agent skills reproducible on a new machine through the existing dotfiles workflow.
 - Preserve the current `skills.sh` workflow so global skill changes continue to be made with the CLI.
 - Establish `dotfiles/agents` as the repo-backed home for `~/.agents`.
 - Keep the first version narrowly scoped to the `skills/` subtree.
 
 **Non-Goals:**
+
 - Track `skills.sh` lockfiles, metadata, or package provenance in this change.
 - Add new installer features or change the symlink validation model.
 - Automatically migrate every possible future `~/.agents/*` subtree.
@@ -21,35 +23,43 @@ The existing installer already supports linking arbitrary repo directories into 
 ## Decisions
 
 ### 1. Link the `~/.agents` root, not only `~/.agents/skills`
+
 The manifest will map `dotfiles/agents` to `~/.agents`.
 
 Rationale: a single root mapping makes the repository the source of truth for the agent home directory and leaves room for future subdirectories such as `commands/` without changing the base structure again.
 
 Alternatives considered:
+
 - Link only `~/.agents/skills`. Rejected because it creates split ownership inside `~/.agents` and forces another structural change when a second subtree needs tracking.
 
 ### 2. Scope the initial managed content to `skills/`
+
 The repository will add `dotfiles/agents/skills/` and migrate only the current global skill directories there.
 
 Rationale: this solves the immediate reproducibility problem without forcing decisions about future `~/.agents` content.
 
 Alternatives considered:
+
 - Mirror every current or hypothetical `~/.agents` subtree immediately. Rejected because the user only needs `skills/` now and broader capture would add noise.
 
 ### 3. Treat the repository as the persisted backing store after migration
+
 After linking, `skills.sh` will continue to manage global skills through `~/.agents/skills`, but the underlying files will live under `dotfiles/agents/skills` in the repo.
 
 Rationale: this preserves the existing operational workflow while making file changes visible to Git without extra export or sync steps.
 
 Alternatives considered:
+
 - Keep `~/.agents/skills` outside the repo and add a separate sync process. Rejected because it duplicates state and breaks the immediate-feedback goal.
 
 ### 4. Reuse the existing generic dotfiles installer unchanged
+
 The change will be implemented through new repo content and a new manifest entry rather than installer logic changes.
 
 Rationale: the current manifest and linker already support linking a repo directory to `~/.agents` safely.
 
 Alternatives considered:
+
 - Add special handling for `skills.sh` paths in the installer. Rejected because there is no technical need and it would make the generic linker less generic.
 
 ## Risks / Trade-offs

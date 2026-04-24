@@ -3,6 +3,7 @@
 The repository is a TypeScript-based configuration installer with a small code surface area. Today, Bun is used for script execution (`bun run`), tests (`bun:test`), and git hooks (`bunx`). The runtime migration must be minimal and fast, keep direct TypeScript execution for the installer, and standardize workflows around npm.
 
 Key constraints:
+
 - Keep implementation lightweight with no build pipeline for script execution.
 - Preserve current installer behavior and test intent.
 - Minimize churn in code and contributor workflows.
@@ -10,12 +11,14 @@ Key constraints:
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Run installer commands with `npm` on Node.js.
 - Keep direct TypeScript execution for `src/installer.ts`.
 - Replace Bun-coupled test/runtime entry points with Node-compatible tooling.
 - Update docs and hooks to match the new npm-first workflow.
 
 **Non-Goals:**
+
 - Refactoring installer business logic.
 - Introducing a compile-to-dist deployment flow.
 - Reworking repository architecture or OpenSpec process conventions.
@@ -65,6 +68,7 @@ Key constraints:
 7. Validate with npm commands (`npm run typecheck`, `npm test`, `npm run setup` dry run).
 
 Rollback strategy:
+
 - Revert this change set to restore Bun scripts/hooks/tests if migration issues surface.
 
 ## Open Questions
