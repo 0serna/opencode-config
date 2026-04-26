@@ -17,7 +17,7 @@ export async function linkEntry(
   const isDirectory = sourceStat.isDirectory();
   const isFile = sourceStat.isFile();
 
-  await ensureRealDirectory(path.dirname(targetPath));
+  await prepareTargetParent(repoDir, path.dirname(targetPath));
   await fs.rm(targetPath, { recursive: true, force: true });
   await fs.symlink(sourcePath, targetPath, isDirectory ? "dir" : "file");
 
@@ -31,16 +31,46 @@ export async function linkEntry(
   console.log(`Linked ${entryType}: ${entry.source} -> ${entry.target}`);
 }
 
-async function ensureRealDirectory(directoryPath: string): Promise<void> {
-  const parentPath = path.dirname(directoryPath);
-  if (parentPath !== directoryPath) {
-    await ensureRealDirectory(parentPath);
+async function prepareTargetParent(
+  repoDir: string,
+  parentPath: string,
+): Promise<void> {
+  await fs.mkdir(path.dirname(parentPath), { recursive: true });
+
+  const parentStat = await fs.lstat(parentPath).catch(() => undefined);
+  if (!parentStat?.isSymbolicLink()) {
+    await fs.mkdir(parentPath, { recursive: true });
+    return;
   }
 
-  const directoryStat = await fs.lstat(directoryPath).catch(() => undefined);
-  if (directoryStat?.isSymbolicLink()) {
-    await fs.rm(directoryPath, { recursive: true, force: true });
+  const [resolvedParent, resolvedRepo] = await Promise.all([
+    fs.realpath(parentPath).catch(() => undefined),
+    fs.realpath(repoDir).catch(() => undefined),
+  ]);
+  const isRepoBackedParent =
+    resolvedParent !== undefined &&
+    resolvedRepo !== undefined &&
+    isPathInsideDirectory(resolvedRepo, resolvedParent);
+
+  if (!isRepoBackedParent) {
+    throw new Error(
+      `Parent symlink is not managed by this repository: ${parentPath}`,
+    );
   }
 
-  await fs.mkdir(directoryPath, { recursive: true });
+  await fs.rm(parentPath, { recursive: true, force: true });
+  await fs.mkdir(parentPath, { recursive: true });
+}
+
+function isPathInsideDirectory(
+  directoryPath: string,
+  candidatePath: string,
+): boolean {
+  const normalizedDirectory = path.resolve(directoryPath);
+  const normalizedCandidate = path.resolve(candidatePath);
+
+  return (
+    normalizedCandidate === normalizedDirectory ||
+    normalizedCandidate.startsWith(`${normalizedDirectory}${path.sep}`)
+  );
 }
