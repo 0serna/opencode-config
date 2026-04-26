@@ -66,10 +66,13 @@ Looks good to me
 If there are reportable findings, print a compact numbered list using this structure:
 
 ```markdown
-1. [severity][area] [title]
-   Where: [path/to/file:line-range]
-   Impact: [evidence and why it matters]
-   Fix: [suggestion]
+## [severity] [title]
 
-2. ...
+**Where**: [path/to/file:line-range]
+
+**Impact**: [evidence and why it matters]
+
+**Fix**: [suggestion]
+
+## [...]
 ```

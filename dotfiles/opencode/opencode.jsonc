@@ -27,6 +27,10 @@
         "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}",
       },
     },
+    "context-mode": {
+      "type": "local",
+      "command": ["context-mode"],
+    },
     "chrome-devtools": {
       "enabled": false,
       "type": "local",
@@ -37,6 +41,14 @@
         "--headless=true",
         "--isolated=true",
       ],
+    },
+  },
+  "plugin": ["@slkiser/opencode-quota", "context-mode"],
+  "experimental": {
+    "quotaToast": {
+      "enableToast": false,
+      "showSessionTokens": false,
+      "enabledProviders": "auto",
     },
   },
   "permission": {
@@ -125,12 +137,4 @@
     "max_bytes": 102400,
   },
   "lsp": false,
-  "plugin": ["@slkiser/opencode-quota"],
-  "experimental": {
-    "quotaToast": {
-      "enableToast": false,
-      "showSessionTokens": false,
-      "enabledProviders": "auto",
-    },
-  },
 }
