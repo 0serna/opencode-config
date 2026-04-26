@@ -10,7 +10,7 @@
     "light": {
       "mode": "primary",
       "color": "secondary",
-      "model": "opencode-go/deepseek-v4-pro",
+      "model": "opencode-go/kimi-k2.6",
     },
     "plan": {
       "disable": true,

@@ -2,6 +2,7 @@
 
 - Keep your answers brief and focused.
 - Use the `question` tool whenever presenting options or decisions to the user.
+- NEVER generate documentation files unless the user explicitly requests them.
 
 ## Project Exploration
 
@@ -19,3 +20,7 @@
 
 - MUST prefer GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata.
 - If necessary, clone repositories to temporary directories `/tmp` to analyze them more efficiently.
+
+## Commits
+
+- NEVER make commits without the user's explicit permission.
