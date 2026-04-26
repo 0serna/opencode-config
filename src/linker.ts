@@ -17,7 +17,7 @@ export async function linkEntry(
   const isDirectory = sourceStat.isDirectory();
   const isFile = sourceStat.isFile();
 
-  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await ensureRealDirectory(path.dirname(targetPath));
   await fs.rm(targetPath, { recursive: true, force: true });
   await fs.symlink(sourcePath, targetPath, isDirectory ? "dir" : "file");
 
@@ -29,4 +29,18 @@ export async function linkEntry(
   }
 
   console.log(`Linked ${entryType}: ${entry.source} -> ${entry.target}`);
+}
+
+async function ensureRealDirectory(directoryPath: string): Promise<void> {
+  const parentPath = path.dirname(directoryPath);
+  if (parentPath !== directoryPath) {
+    await ensureRealDirectory(parentPath);
+  }
+
+  const directoryStat = await fs.lstat(directoryPath).catch(() => undefined);
+  if (directoryStat?.isSymbolicLink()) {
+    await fs.rm(directoryPath, { recursive: true, force: true });
+  }
+
+  await fs.mkdir(directoryPath, { recursive: true });
 }

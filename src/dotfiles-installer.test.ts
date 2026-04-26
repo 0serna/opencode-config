@@ -84,6 +84,46 @@ describe("DotfilesInstaller", () => {
     ).toBe("content");
   });
 
+  it("replaces an existing parent symlink before linking granular entries", async () => {
+    const { repoDir, homeDir } = await createRepo(
+      {
+        "dotfiles/opencode/opencode.jsonc": "config",
+        "dotfiles/opencode/commands/example.md": "command",
+      },
+      [
+        {
+          source: "dotfiles/opencode/opencode.jsonc",
+          target: "~/.config/opencode/opencode.jsonc",
+        },
+        {
+          source: "dotfiles/opencode/commands",
+          target: "~/.config/opencode/commands",
+        },
+      ],
+    );
+    const opencodeTarget = path.join(homeDir, ".config", "opencode");
+    const opencodeSource = path.join(repoDir, "dotfiles", "opencode");
+    await fs.mkdir(path.dirname(opencodeTarget), { recursive: true });
+    await fs.symlink(opencodeSource, opencodeTarget, "dir");
+
+    const installer = new DotfilesInstaller(repoDir, homeDir);
+    const success = await installer.install();
+
+    expect(success).toBe(true);
+    expect((await fs.lstat(opencodeTarget)).isDirectory()).toBe(true);
+    expect(
+      (
+        await fs.lstat(path.join(opencodeTarget, "opencode.jsonc"))
+      ).isSymbolicLink(),
+    ).toBe(true);
+    expect(
+      (await fs.lstat(path.join(opencodeTarget, "commands"))).isSymbolicLink(),
+    ).toBe(true);
+    expect(
+      await fs.readFile(path.join(opencodeTarget, "opencode.jsonc"), "utf-8"),
+    ).toBe("config");
+  });
+
   it("rejects sources that escape the repository", async () => {
     const { repoDir, homeDir } = await createRepo(
       { "dotfiles/opencode/opencode.jsonc": "config" },

@@ -1,7 +1,35 @@
 [
   {
-    "source": "dotfiles/opencode",
-    "target": "~/.config/opencode"
+    "source": "dotfiles/opencode/opencode.jsonc",
+    "target": "~/.config/opencode/opencode.jsonc"
+  },
+  {
+    "source": "dotfiles/opencode/tui.jsonc",
+    "target": "~/.config/opencode/tui.jsonc"
+  },
+  {
+    "source": "dotfiles/opencode/AGENTS.md",
+    "target": "~/.config/opencode/AGENTS.md"
+  },
+  {
+    "source": "dotfiles/opencode/commands",
+    "target": "~/.config/opencode/commands"
+  },
+  {
+    "source": "dotfiles/opencode/skills",
+    "target": "~/.config/opencode/skills"
+  },
+  {
+    "source": "dotfiles/opencode/agents",
+    "target": "~/.config/opencode/agents"
+  },
+  {
+    "source": "dotfiles/opencode/plugins",
+    "target": "~/.config/opencode/plugins"
+  },
+  {
+    "source": "dotfiles/opencode/tools",
+    "target": "~/.config/opencode/tools"
   },
   {
     "source": "dotfiles/agents",
