@@ -93,6 +93,7 @@
       "git grep *": "allow",
       "git ls-files *": "allow",
       "git blame *": "allow",
+      "git check-ignore *": "allow",
       // gh
       "gh *": "ask",
       "gh help *": "allow",
