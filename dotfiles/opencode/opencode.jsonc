@@ -10,17 +10,13 @@
     "light": {
       "mode": "primary",
       "color": "secondary",
-      "model": "opencode-go/kimi-k2.6",
-    },
-    "plan": {
-      "disable": true,
-    },
-    "build": {
-      "disable": true,
+      "model": "opencode-go/mimo-v2.5-pro",
     },
     "explore": {
-      "disable": true,
+      "model": "opencode-go/deepseek-v4-flash",
     },
+    "plan": { "disable": true },
+    "build": { "disable": true },
   },
   "mcp": {
     "context7": {
@@ -140,4 +136,5 @@
     "max_bytes": 102400,
   },
   "lsp": false,
+  "snapshot": false,
 }
