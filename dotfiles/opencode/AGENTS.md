@@ -1,7 +1,3 @@
-## Startup
-
-- At the start of every conversation, always load the `context-mode` skill so context handling rules are active before running tools or reading large outputs.
-
 ## Communication
 
 - Keep your answers concise and to the point. Avoid using filler words.
