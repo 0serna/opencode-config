@@ -42,22 +42,36 @@ Prepare a JavaScript/TypeScript repository for effective agent work by configuri
     - If Prettier config exists, leave it unchanged unless it prevents the requested integration.
 11. Configure Fallow integration:
     - Ensure `.gitignore` ignores `.fallow/` for Fallow's local cache and generated state.
-12. Update `package.json` scripts:
-    - Ensure `check` includes `prettier --check .`, `eslint .`, and `fallow --fail-on-issues`, preserving existing test, typecheck, build, or other verification steps unless the user approves removing them.
-    - If the repo has an `openspec/` directory, ensure `check` includes `openspec validate --all --json`.
+12. Configure OpenSpec integration when the repo has an `openspec/` directory:
+    - Ensure `openspec/config.yaml` matches this template:
+
+    ```yaml
+    schema: spec-driven
+
+    rules:
+    specs:
+      - Specify externally observable behavior and durable domain rules.
+      - Include exact values only when the value is part of the required contract.
+      - Do not couple specs to implementation constants, helper names, or volatile configured values.
+      - For configurable behavior, describe scenarios in terms of configured inputs rather than the current configuration contents.
+    ```
+
+13. Update `package.json` scripts:
+    - Ensure `check` includes `prettier --check .`, `eslint .`, and `fallow --production-health`, preserving existing test, typecheck, build, or other verification steps unless the user approves removing them.
+    - If the repo has an `openspec/` directory, ensure `check` includes `openspec validate --all`.
     - Ensure `format` runs `prettier --write .`, preserving any existing required behavior if possible.
     - Ensure `prepare` runs `husky`, preserving any existing required behavior if possible.
-13. Configure lint-staged:
+14. Configure lint-staged:
     - Ensure all recognized files run `prettier --write --ignore-unknown`.
     - Ensure JavaScript and TypeScript files run `eslint --fix`.
-14. Configure Husky pre-commit:
+15. Configure Husky pre-commit:
     - Ensure `.husky/pre-commit` runs the `check` script followed by lint-staged, both with the detected package manager's executable runner (e.g. `npm run check && npx lint-staged`).
     - Do not run `fallow` directly in pre-commit; Fallow belongs in `check`.
-15. Run the package manager install command if dependencies or lockfiles need updating.
-16. Run the repository's check command with the detected package manager.
-17. Target `AGENTS.md` at the repository root.
-18. Inspect the final repository structure just enough to identify the important source, test, app, package, module, documentation, script, and workflow directories.
-19. Build a concise `Project Structure` section as a directory tree:
+16. Run the package manager install command if dependencies or lockfiles need updating.
+17. Run the repository's check command with the detected package manager.
+18. Target `AGENTS.md` at the repository root.
+19. Inspect the final repository structure just enough to identify the important source, test, app, package, module, documentation, script, and workflow directories.
+20. Build a concise `Project Structure` section as a directory tree:
     - Start at `.`.
     - Include important directories and only the rare file that is a true code or workflow entry point.
     - Do not include root-level package manifests, lockfiles, or routine configuration files.
@@ -79,13 +93,13 @@ Prepare a JavaScript/TypeScript repository for effective agent work by configuri
 - Adapt labels and descriptions to the actual repository.
 - Omit directories from the template that are not present or not important.
 
-20. Inspect final configured JavaScript/TypeScript command sources, when present:
+21. Inspect final configured JavaScript/TypeScript command sources, when present:
     - `package.json`
     - `Makefile`
     - `justfile`
     - `Taskfile.yml` or `Taskfile.yaml`
     - scripts under `bin/`, `script/`, `scripts/`, or similar directories
-21. Build a concise `Repository Commands` section listing only useful commands an agent should know about, using this format:
+22. Build a concise `Repository Commands` section listing only useful commands an agent should know about, using this format:
 
 ```markdown
 ## Repository Commands
@@ -100,14 +114,14 @@ Prepare a JavaScript/TypeScript repository for effective agent work by configuri
 - Omit commands from the template that are not configured or not useful.
 - If no useful commands are detected, write `No useful repository commands detected.` under the section heading.
 
-22. Read the existing `AGENTS.md` if it exists.
-23. Create or replace only the generated `Project Structure` and `Repository Commands` sections as the first sections in `AGENTS.md`:
+23. Read the existing `AGENTS.md` if it exists.
+24. Create or replace only the generated `Project Structure` and `Repository Commands` sections as the first sections in `AGENTS.md`:
     - If a section exists, replace that full section.
     - If a section does not exist, insert it before all unrelated content.
     - Ensure `Project Structure` appears before `Repository Commands`.
     - Preserve all unrelated content unchanged.
-24. If `AGENTS.md` does not exist, create it with only the generated sections.
-25. Run the repository's configured formatting or validation command when one is clearly available and relevant to Markdown or repository checks.
+25. If `AGENTS.md` does not exist, create it with only the generated sections.
+26. Run the repository's configured formatting or validation command when one is clearly available and relevant to Markdown or repository checks.
 
 ## Rules
 
@@ -123,7 +137,7 @@ Prepare a JavaScript/TypeScript repository for effective agent work by configuri
 - Do not remove existing `check` or `format` script behavior unless the user explicitly approves it.
 - Stop and ask before migrating legacy ESLint config or replacing complex existing configuration.
 - Do not configure CI unless the user explicitly asks.
-- Do not add `openspec validate --all --json` unless the repository has an `openspec/` directory.
+- Do not add `openspec validate --all` unless the repository has an `openspec/` directory.
 - Do not stage, stash, commit, or push changes.
 - Do not run destructive git commands.
 - Do not run Fallow as an autofix step in pre-commit.

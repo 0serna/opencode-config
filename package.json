@@ -6,7 +6,7 @@
   "scripts": {
     "link": "tsx src/dotfiles-installer.ts",
     "test": "vitest run",
-    "check": "prettier --check . && eslint . && fallow --fail-on-issues && tsc --noEmit && openspec validate --all --json",
+    "check": "prettier --check . && eslint . && fallow --production-health && tsc --noEmit && openspec validate --all",
     "format": "prettier --write .",
     "prepare": "husky"
   },

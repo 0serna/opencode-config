@@ -6,7 +6,7 @@
 │   ├── dotfiles-installer.ts      # CLI entry point for linking dotfiles
 │   └── dotfiles-installer.test.ts # Vitest coverage for installer behavior
 ├── dotfiles/                     # Files linked into user config locations
-│   ├── agents/                   # Shared agent configuration and skills
+│   ├── agents/                   # Shared agent skills and lockfile
 │   ├── opencode/                 # OpenCode config, commands, agents, plugins, tools
 │   └── pi/                       # Pi agent settings and prompt templates
 ├── openspec/                     # OpenSpec specs, changes, and validation config
@@ -18,5 +18,5 @@
 - `npm install`: install dependencies.
 - `npm run link`: link configured dotfiles from `dotfiles.json`.
 - `npm test`: run the Vitest suite.
-- `npm run check`: run Prettier check, ESLint, Fallow, TypeScript, and OpenSpec validation.
+- `npm run check`: run Prettier, ESLint, Fallow production health, TypeScript, and OpenSpec validation.
 - `npm run format`: format repository files with Prettier.
