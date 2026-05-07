@@ -3,5 +3,9 @@
   "manualMode": {
     "enabled": true,
     "automaticStrategies": true
+  },
+  "turnProtection": {
+    "enabled": true,
+    "turns": 5
   }
 }
