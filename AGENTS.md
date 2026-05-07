@@ -2,7 +2,7 @@
 
 ```text
 .
-├── src/                          # TypeScript dotfiles installer and tests
+├── src/                          # TypeScript installer, manifest, and link logic
 │   ├── dotfiles-installer.ts      # CLI entry point for linking dotfiles
 │   └── dotfiles-installer.test.ts # Vitest coverage for installer behavior
 ├── dotfiles/                     # Files linked into user config locations
@@ -18,5 +18,5 @@
 - `npm install`: install dependencies.
 - `npm run link`: link configured dotfiles from `dotfiles.json`.
 - `npm test`: run the Vitest suite.
-- `npm run check`: run Prettier, ESLint, Fallow production health, TypeScript, and OpenSpec validation.
+- `npm run check`: run Prettier, ESLint, TypeScript, Fallow, and OpenSpec validation.
 - `npm run format`: format repository files with Prettier.

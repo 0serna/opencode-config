@@ -57,15 +57,16 @@ Prepare a JavaScript/TypeScript repository for effective agent work by configuri
     ```
 
 13. Update `package.json` scripts:
-    - Ensure `check` includes `prettier --check .`, `eslint .`, and `fallow --production-health`, preserving existing test, typecheck, build, or other verification steps unless the user approves removing them.
-    - If the repo has an `openspec/` directory, ensure `check` includes `openspec validate --all`.
+    - Ensure `check` runs checks in a sensible low-cost-to-high-cost order: `prettier --check .`, `eslint .`, typecheck steps, `fallow --production-health`, and finally `openspec validate --all` when applicable.
+    - Preserve existing test, typecheck, build, or other verification steps unless the user approves removing them.
+    - If the repo has an `openspec/` directory, ensure `check` includes `openspec validate --all` at the end.
     - Ensure `format` runs `prettier --write .`, preserving any existing required behavior if possible.
     - Ensure `prepare` runs `husky`, preserving any existing required behavior if possible.
 14. Configure lint-staged:
     - Ensure all recognized files run `prettier --write --ignore-unknown`.
     - Ensure JavaScript and TypeScript files run `eslint --fix`.
 15. Configure Husky pre-commit:
-    - Ensure `.husky/pre-commit` runs the `check` script followed by lint-staged, both with the detected package manager's executable runner (e.g. `npm run check && npx lint-staged`).
+    - Ensure `.husky/pre-commit` runs lint-staged first and the `check` script second, both with the detected package manager's executable runner (e.g. `npx lint-staged && npm run check`).
     - Do not run `fallow` directly in pre-commit; Fallow belongs in `check`.
 16. Run the package manager install command if dependencies or lockfiles need updating.
 17. Run the repository's check command with the detected package manager.
@@ -169,7 +170,7 @@ Return a concise summary with:
 - configuration files created or updated
 - final `check` script
 - final `format` script
-- pre-commit behavior (runs `check` then lint-staged)
+- pre-commit behavior (runs lint-staged then `check`)
 - `AGENTS.md` path updated or created
 - `AGENTS.md` sections created or replaced
 - command sources inspected for `AGENTS.md`
