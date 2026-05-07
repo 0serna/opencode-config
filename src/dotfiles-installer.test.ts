@@ -215,6 +215,27 @@ describe("DotfilesInstaller", () => {
     await expectSymlink(opencodeTarget);
   });
 
+  it("rejects a broken immediate parent symlink without replacing it", async () => {
+    const { repoDir, homeDir } = await createRepo(
+      { "dotfiles/opencode/opencode.jsonc": "config" },
+      [
+        {
+          source: "dotfiles/opencode/opencode.jsonc",
+          target: "~/.config/opencode/opencode.jsonc",
+        },
+      ],
+    );
+    const missingTarget = path.join(tmpDir, "missing-opencode");
+    const opencodeTarget = path.join(homeDir, ".config", "opencode");
+    await fs.mkdir(path.dirname(opencodeTarget), { recursive: true });
+    await fs.symlink(missingTarget, opencodeTarget, "dir");
+
+    const success = await install(repoDir, homeDir);
+
+    expect(success).toBe(false);
+    await expectSymlink(opencodeTarget);
+  });
+
   it("rejects sources that escape the repository", async () => {
     const { repoDir, homeDir } = await createRepo(
       { "dotfiles/opencode/opencode.jsonc": "config" },
@@ -321,6 +342,24 @@ describe("DotfilesInstaller", () => {
 
     expect(success).toBe(false);
     expect(await fs.readFile(targetPath, "utf-8")).toBe("old");
+  });
+
+  it("allows absolute targets in sibling directories with the repository path prefix", async () => {
+    const { repoDir, homeDir } = await createWorkspace();
+    const targetPath = path.join(`${repoDir}-target`, "opencode.jsonc");
+
+    await writeOpenCodeConfig(repoDir);
+    await writeManifest(repoDir, [
+      {
+        source: "dotfiles/opencode/opencode.jsonc",
+        target: targetPath,
+      },
+    ]);
+
+    const success = await install(repoDir, homeDir);
+
+    expect(success).toBe(true);
+    await expectSymlink(targetPath);
   });
 
   it("replaces existing targets", async () => {

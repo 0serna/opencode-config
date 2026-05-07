@@ -36,14 +36,17 @@ function parseEntry(entry: unknown, index: number): DotfileEntry {
   }
 
   const { source, target } = entry as Record<string, unknown>;
-  if (
-    typeof source !== "string" ||
-    source.trim() === "" ||
-    typeof target !== "string" ||
-    target.trim() === ""
-  ) {
-    throw new Error(`Entry ${index} must include non-empty source and target`);
+
+  return {
+    source: parseEntryValue(source, index),
+    target: parseEntryValue(target, index),
+  };
+}
+
+function parseEntryValue(value: unknown, index: number): string {
+  if (typeof value === "string" && value.trim() !== "") {
+    return value;
   }
 
-  return { source, target };
+  throw new Error(`Entry ${index} must include non-empty source and target`);
 }

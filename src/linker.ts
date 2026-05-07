@@ -47,16 +47,7 @@ async function prepareTargetParent(
     return;
   }
 
-  const [resolvedParent, resolvedRepo] = await Promise.all([
-    fs.realpath(parentPath).catch(() => undefined),
-    fs.realpath(repoDir).catch(() => undefined),
-  ]);
-  const isRepoBackedParent =
-    resolvedParent !== undefined &&
-    resolvedRepo !== undefined &&
-    isPathInsideDirectory(resolvedRepo, resolvedParent);
-
-  if (!isRepoBackedParent) {
+  if (!(await isRepoBackedSymlink(repoDir, parentPath))) {
     throw new Error(
       `Parent symlink is not managed by this repository: ${parentPath}`,
     );
@@ -64,4 +55,20 @@ async function prepareTargetParent(
 
   await fs.rm(parentPath, { recursive: true, force: true });
   await fs.mkdir(parentPath, { recursive: true });
+}
+
+async function isRepoBackedSymlink(
+  repoDir: string,
+  symlinkPath: string,
+): Promise<boolean> {
+  const [resolvedParent, resolvedRepo] = await Promise.all([
+    fs.realpath(symlinkPath).catch(() => undefined),
+    fs.realpath(repoDir).catch(() => undefined),
+  ]);
+
+  if (resolvedParent === undefined || resolvedRepo === undefined) {
+    return false;
+  }
+
+  return isPathInsideDirectory(resolvedRepo, resolvedParent);
 }

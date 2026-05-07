@@ -33,12 +33,7 @@ export function resolveTarget(
   homeDir: string,
   target: string,
 ): string {
-  const expandedTarget =
-    target === "~"
-      ? homeDir
-      : target.startsWith("~/")
-        ? path.join(homeDir, target.slice(2))
-        : target;
+  const expandedTarget = expandHomeTarget(homeDir, target);
 
   if (!path.isAbsolute(expandedTarget)) {
     throw new Error(`Target must be absolute: ${target}`);
@@ -56,4 +51,16 @@ export function resolveTarget(
   }
 
   return normalizedTarget;
+}
+
+function expandHomeTarget(homeDir: string, target: string): string {
+  if (target === "~") {
+    return homeDir;
+  }
+
+  if (target.startsWith("~/")) {
+    return path.join(homeDir, target.slice(2));
+  }
+
+  return target;
 }
