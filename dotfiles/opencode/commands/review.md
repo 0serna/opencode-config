@@ -21,21 +21,20 @@ $ARGUMENTS
 
 ## Workflow
 
-1. Create a temporary diff file: `TEMP_FILE=$(mktemp /tmp/diff.XXXXXX)`.
-2. Detect review target and save the diff to the temporary file:
+1. Detect review target and save the diff to a temporary file:
    - If arguments contain PR number/URL:
      - `gh pr checkout [number]` (mandatory, so changed files can be inspected in full context)
      - `gh pr view [number] --json title,body`
-     - `gh pr diff [number] > "$TEMP_FILE"`
+     - `TEMP_FILE=$(mktemp /tmp/diff.XXXXXX) && gh pr diff [number] > "$TEMP_FILE" && echo "TEMP_FILE=$TEMP_FILE"`
    - If no arguments:
-     - `git diff HEAD > "$TEMP_FILE"`
-3. If the temporary file is empty, output `No changes to review` and STOP.
-4. Read the temporary file to inspect the diff. If the diff is large, read it in batches.
-5. From changed lines only, generate a small set of strong candidate issues. For each candidate, note category, `file:line`, and a one-sentence hypothesis.
-6. Prefer fewer, stronger candidates; merge duplicate candidates.
-7. Verify each candidate directly in the current session using the available read/search/diff tools.
-8. During verification, read full files and relevant context, try to disprove the hypothesis, and keep only issues introduced or worsened by the current changes.
-9. Report only important confirmed findings with concrete evidence.
+     - `TEMP_FILE=$(mktemp /tmp/diff.XXXXXX) && git diff HEAD > "$TEMP_FILE" && echo "TEMP_FILE=$TEMP_FILE"`
+2. If the diff file is empty, output `No changes to review` and STOP.
+3. Read the diff file to inspect the changes. If the diff is large, read it in batches.
+4. From changed lines only, generate a small set of strong candidate issues. For each candidate, note category, `file:line`, and a one-sentence hypothesis.
+5. Prefer fewer, stronger candidates; merge duplicate candidates.
+6. Verify each candidate directly in the current session using the available read/search/diff tools.
+7. During verification, read full files and relevant context, try to disprove the hypothesis, and keep only issues introduced or worsened by the current changes.
+8. Report only important confirmed findings with concrete evidence.
 
 ## Rules
 
