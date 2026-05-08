@@ -21,16 +21,16 @@ $ARGUMENTS
 
 ## Workflow
 
-1. Detect review target and save the diff to a temporary file:
+1. Detect review target:
    - If arguments contain PR number/URL:
      - `gh pr checkout [number]` (mandatory, so changed files can be inspected in full context)
      - `gh pr view [number] --json title,body`
-     - `TEMP_FILE=$(mktemp /tmp/diff.XXXXXX) && gh pr diff [number] > "$TEMP_FILE" && echo "TEMP_FILE=$TEMP_FILE"`
+     - `gh pr diff [number]`
    - If no arguments:
-     - `TEMP_FILE=$(mktemp /tmp/diff.XXXXXX) && git diff HEAD > "$TEMP_FILE" && echo "TEMP_FILE=$TEMP_FILE"`
-2. If the diff file is empty, output `No changes to review` and STOP.
-3. Read the diff file to inspect the changes. If the diff is large, read it in batches.
-4. From changed lines only, generate a small set of strong candidate issues. For each candidate, note category, `file:line`, and a one-sentence hypothesis.
+     - `git diff HEAD`
+2. If the diff is empty, output `No changes to review` and STOP.
+3. Read the diff output to inspect the changes. If the diff is large, read in batches.
+4. From the diff, generate a small set of strong candidate issues. For each candidate, note category, `file:line`, and one-sentence hypothesis.
 5. Prefer fewer, stronger candidates; merge duplicate candidates.
 6. Verify each candidate directly in the current session using the available read/search/diff tools.
 7. During verification, read full files and relevant context, try to disprove the hypothesis, and keep only issues introduced or worsened by the current changes.
@@ -67,13 +67,11 @@ Looks good to me
 If there are reportable findings, print this structure per finding:
 
 ```markdown
----
-
 severity: [severity]
 path: [path/to/file:line-range]
 [evidence, why it matters and suggestion]
 
 ---
 
-[...]
+[next finding]
 ```

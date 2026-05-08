@@ -12,11 +12,10 @@ Create a concise, factual commit message from staged changes and run the commit.
 
 ## Workflow
 
-1. Save the staged diff to a temporary file: `TEMP_FILE=$(mktemp /tmp/diff.XXXXXX) && git diff --cached > $TEMP_FILE && echo "TEMP_FILE=$TEMP_FILE"`.
-2. If the temporary file is empty, print `No staged changes to commit`, and stop.
-3. Read the temporary file to inspect the diff. If the diff is large, read it in batches.
-4. Generate a message using only facts visible in the temporary file.
-5. Run `git commit` with the generated message.
+1. Run `git diff --cached` to get the staged changes. If empty, print `No staged changes to commit` and stop.
+2. Read the diff output to inspect the changes. If large, read in batches.
+3. Generate a message using only facts visible in the diff.
+4. Run `git commit` with the generated message.
 
 ## Rules
 
