@@ -4,11 +4,11 @@ description: Simplify code without changing behavior
 
 ## Arguments
 
-```text
+```arguments
 $ARGUMENTS
 ```
 
-- **No arguments provided**: Inspect current uncommitted changes (`git status`, `git diff`).
+- **No arguments provided**: Inspect current changes (`git diff HEAD`).
 - **Clear arguments** (files, paths, or a well-defined scope): Use that scope.
 - **Unclear or ambiguous arguments**: Stop and ask the user for clarification before proceeding.
 

@@ -60,7 +60,7 @@ description: ...
 - Commands that accept input should include:
 
 ````markdown
-```text
+```arguments
 $ARGUMENTS
 ```
 ````
@@ -72,7 +72,7 @@ $ARGUMENTS
 No arguments expected.
 ```
 
-- Fold scope selection into `Arguments`; do not create a separate `Scope Selection` section.
+- Fold scope selection into `Arguments`; do not create a separate section.
 
 ## Task
 

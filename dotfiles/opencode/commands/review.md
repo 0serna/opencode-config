@@ -4,7 +4,7 @@ description: Code review changes or pull requests
 
 ## Arguments
 
-```text
+```arguments
 $ARGUMENTS
 ```
 

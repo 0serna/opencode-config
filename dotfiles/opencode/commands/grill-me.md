@@ -4,7 +4,7 @@ description: Interview relentlessly about a plan or design until all decision br
 
 ## Arguments
 
-```text
+```arguments
 $ARGUMENTS
 ```
 
