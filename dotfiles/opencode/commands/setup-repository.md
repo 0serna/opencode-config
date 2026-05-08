@@ -2,13 +2,7 @@
 description: Setup JS/TS repository for agent work
 ---
 
-## Arguments
-
-No arguments expected.
-
-## Task
-
-Prepare a JavaScript/TypeScript repository for effective agent work by configuring or updating quality tooling, then creating or updating the repository root `AGENTS.md` with concise context that helps future agents navigate the project and run the most useful configured commands.
+Prepare this JavaScript or TypeScript repository for agent work by configuring or updating the expected quality tooling first, then generating or refreshing the top `AGENTS.md` sections with concise project structure and command guidance.
 
 ## Workflow
 

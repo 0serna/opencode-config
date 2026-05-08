@@ -2,13 +2,7 @@
 description: Update OpenCode plugins, MCPs, skills, and global CLI tools
 ---
 
-## Arguments
-
-No arguments expected.
-
-## Task
-
-Update all pinned opencode plugins listed in `opencode.jsonc` and `tui.jsonc` to their latest npm versions. Also update pinned MCP packages that provide local binaries to their latest npm versions, keeping the installed global binary package in sync. Update the global `playwriter` CLI to its latest npm version. Check that the `rtk` brew binary is installed and up to date.
+Update all pinned OpenCode plugins, MCP package references, and related global CLI tools to their latest compatible versions, keep local binary installations in sync, and report what changed.
 
 ## Workflow
 

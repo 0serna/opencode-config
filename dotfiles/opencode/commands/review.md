@@ -2,6 +2,8 @@
 description: Code review changes or pull requests
 ---
 
+Perform a focused code review of local changes or a pull request, verify likely issues against the real code, and report only important confirmed findings with concrete evidence.
+
 ## Arguments
 
 ```arguments
@@ -11,13 +13,6 @@ $ARGUMENTS
 - **PR number or URL**: Check out and review that pull request.
 - **No arguments provided**: Review local changes against `HEAD`.
 - **Unclear or ambiguous arguments**: Stop and ask the user for clarification before proceeding.
-
-## Task
-
-- Perform a focused, high-signal code review of local changes or a PR.
-- Prioritize important issues introduced or worsened by the changes.
-- Focus on correctness, security issues with concrete and material risk, data integrity, reliability, performance, contracts, and pattern regressions with concrete risk.
-- Avoid style-only feedback and speculative concerns.
 
 ## Workflow
 

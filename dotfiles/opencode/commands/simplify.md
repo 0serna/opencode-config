@@ -2,6 +2,8 @@
 description: Simplify code without changing behavior
 ---
 
+Simplify the requested code or the current diff by making high-confidence clarity and maintainability improvements while preserving exact behavior.
+
 ## Arguments
 
 ```arguments
@@ -11,10 +13,6 @@ $ARGUMENTS
 - **No arguments provided**: Inspect current changes (`git diff HEAD`).
 - **Clear arguments** (files, paths, or a well-defined scope): Use that scope.
 - **Unclear or ambiguous arguments**: Stop and ask the user for clarification before proceeding.
-
-## Task
-
-Refine code for clarity, consistency, and maintainability while preserving exact behavior.
 
 ## Workflow
 

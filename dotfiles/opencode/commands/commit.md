@@ -2,13 +2,7 @@
 description: Generate commit for staged changes
 ---
 
-## Arguments
-
-No arguments expected.
-
-## Task
-
-Create a concise, factual commit message from staged changes and run the commit.
+Create a concise, factual commit message from the staged changes and run the commit once, reporting either the final committed message or the factual failure cause.
 
 ## Workflow
 

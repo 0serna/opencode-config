@@ -19,7 +19,7 @@ The goal is consistency: every local command should be easy to scan, predictable
 
 ## Required Structure
 
-Every non-`opsx-*` command should use this section order:
+Every non-`opsx-*` command should use this structure and order:
 
 ```markdown
 ---
@@ -27,11 +27,9 @@ description: ...
 [other frontmatter only when needed]
 ---
 
-## Arguments
+Task description written for the agent. State clearly what the agent is being asked to do. Do not add a heading for this block.
 
-...
-
-## Task
+## Arguments (optional - omit if no arguments expected)
 
 ...
 
@@ -57,7 +55,8 @@ description: ...
 
 ## Arguments
 
-- Commands that accept input should include:
+- Include this section only when the command accepts arguments.
+- When arguments are expected, use:
 
 ````markdown
 ```arguments
@@ -66,18 +65,14 @@ $ARGUMENTS
 ````
 
 - Explain how to handle no arguments, clear arguments, and ambiguous arguments when relevant.
-- Commands that do not expect input should use plain text:
+- Omit this section entirely when no arguments are expected; do not write "No arguments expected." or any placeholder text.
 
-```markdown
-No arguments expected.
-```
+## Task Description
 
-- Fold scope selection into `Arguments`; do not create a separate section.
-
-## Task
-
-- State what the command does in one short paragraph or a compact bullet list.
-- Keep the task focused on the command's purpose.
+- The first content block after frontmatter must be the task description, with no heading.
+- Write it for the agent who will execute the command.
+- State clearly what the agent is being asked to do, in one short paragraph or a compact bullet list.
+- Keep it focused on the command's purpose.
 - Avoid implementation details that belong in `Workflow`.
 
 ## Workflow

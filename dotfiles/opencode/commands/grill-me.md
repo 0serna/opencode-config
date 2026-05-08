@@ -2,6 +2,8 @@
 description: Interview relentlessly about a plan or design until all decision branches are resolved
 ---
 
+Interview me about a plan, design, or decision space until the important branches are resolved and our shared understanding is explicit, without turning that discussion into implementation work.
+
 ## Arguments
 
 ```arguments
@@ -12,10 +14,6 @@ $ARGUMENTS
 - **No arguments provided and no prior context**: Ask the user what plan, design, or topic they want to be grilled on before proceeding.
 - **Clear arguments** (a topic, feature, problem, plan, decision, or prior exploration): Use that as the subject.
 - **Unclear or ambiguous arguments**: Stop and ask the user what should be grilled on before proceeding.
-
-## Task
-
-Interview the user relentlessly about every aspect of the plan or design until reaching shared understanding. Walk down each branch of the decision tree, resolving dependencies between decisions one-by-one. This command is a convergence checkpoint before implementation — it does not create plans, specifications, tasks, proposals, or code changes.
 
 ## Workflow
 

@@ -2,13 +2,7 @@
 description: Update OpenSpec to the latest version
 ---
 
-## Arguments
-
-No arguments expected.
-
-## Task
-
-Update the repository's OpenSpec-generated opencode commands and skills to the latest version.
+Update the repository's OpenSpec-generated commands and skills to the latest available version, then verify the copied output and clean up temporary staging files.
 
 ## Workflow
 
