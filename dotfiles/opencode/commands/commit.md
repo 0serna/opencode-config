@@ -1,5 +1,6 @@
 ---
 description: Generate commit for staged changes
+model: openai/gpt-5.4-mini
 ---
 
 Create a concise, factual commit message from the staged changes and run the commit once, reporting either the final committed message or the factual failure cause.
