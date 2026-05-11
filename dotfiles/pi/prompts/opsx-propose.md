@@ -21,7 +21,7 @@ When ready to implement, run /opsx-apply
 
 1. **If no input provided, ask what they want to build**
 
-   Ask in normal conversation:
+   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
 
    > "What change do you want to work on? Describe what you want to build or fix."
 
@@ -49,7 +49,9 @@ When ready to implement, run /opsx-apply
 
 4. **Create artifacts in sequence until apply-ready**
 
-   Track progress in the conversation and loop through artifacts in dependency order (artifacts with no pending dependencies first):
+   Use the **TodoWrite tool** to track progress through the artifacts.
+
+   Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
    a. **For each artifact that is `ready` (dependencies satisfied)**:
    - Get instructions:
@@ -74,7 +76,7 @@ When ready to implement, run /opsx-apply
    - Stop when all `applyRequires` artifacts are done
 
    c. **If an artifact requires user input** (unclear context):
-   - Ask the user for clarification in normal conversation
+   - Use **AskUserQuestion tool** to clarify
    - Then continue with creation
 
 5. **Show final status**

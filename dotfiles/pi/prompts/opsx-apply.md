@@ -14,7 +14,7 @@ Implement tasks from an OpenSpec change.
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If ambiguous, run `openspec list --json`, summarize the available changes, and ask the user to choose before proceeding
+   - If ambiguous, run `openspec list --json` to get available changes and use the **AskUserQuestion tool** to let the user select
 
    Always announce: "Using change: <name>" and how to override (e.g., `/opsx-apply <other>`).
 
@@ -35,19 +35,19 @@ Implement tasks from an OpenSpec change.
    ```
 
    This returns:
-   - Context file paths (varies by schema)
+   - `contextFiles`: artifact ID -> array of concrete file paths (varies by schema)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
 
    **Handle states:**
-   - If `state: "blocked"` (missing artifacts): show what is missing, explain that implementation cannot proceed yet, and ask the user whether to complete the missing artifacts first
+   - If `state: "blocked"` (missing artifacts): show message, suggest using `/opsx-continue`
    - If `state: "all_done"`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
 4. **Read context files**
 
-   Read the files listed in `contextFiles` from the apply instructions output.
+   Read every file path listed under `contextFiles` from the apply instructions output.
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
