@@ -18,11 +18,6 @@
         "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}",
       },
     },
-    "agentmemory": {
-      "type": "local",
-      "command": ["npx", "-y", "@agentmemory/mcp"],
-      "timeout": 60000,
-    },
   },
   "plugin": ["@slkiser/opencode-quota@3.6.2"],
   "permission": {
@@ -61,6 +56,7 @@
       "git clone *": "allow",
       "git help *": "allow",
       "rtk git status *": "allow",
+      "rtk git fetch *": "allow",
       "git diff *": "allow",
       "rtk git log *": "allow",
       "rtk git show *": "allow",
