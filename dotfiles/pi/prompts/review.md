@@ -1,122 +1,72 @@
 ---
-description: Review local changes or a pull request for important issues
+description: Code review changes or pull requests
 ---
 
-Perform a focused, high-signal code review of local changes or a pull request.
+Perform a focused code review of local changes or a pull request, verify likely issues against the real code, and report only important confirmed findings with concrete evidence.
 
-## Input
+## Arguments
 
-```text
+```arguments
 $ARGUMENTS
 ```
 
-## Goal
+- **PR number or URL**: Check out and review that pull request.
+- **No arguments provided**: Review local changes against `HEAD`.
+- **Unclear or ambiguous arguments**: Stop and ask the user for clarification before proceeding.
 
-Prioritize important issues introduced or worsened by the changes.
-Focus on:
+## Workflow
 
-- correctness and bugs
-- security issues with concrete and material risk
-- data integrity and state transitions
-- reliability, retries, cleanup, timeouts, and concurrency
-- performance issues with clear triggers or scaling risk
-- contracts, schema, typing, and backward compatibility
-- pattern regressions only when they create concrete risk
+1. Detect review target:
+   - If arguments contain PR number/URL:
+     - `gh pr checkout [number]` (mandatory, so changed files can be inspected in full context)
+     - `gh pr view [number] --json title,body`
+     - `gh pr diff [number]`
+   - If no arguments:
+     - `git diff HEAD`
+2. If the diff is empty, output `No changes to review` and STOP.
+3. Read the diff output to inspect the changes. If the diff is large, read in batches.
+4. From the diff, generate a small set of strong candidate issues. For each candidate, note category, `file:line`, and one-sentence hypothesis.
+5. Prefer fewer, stronger candidates; merge duplicate candidates.
+6. Verify each candidate directly in the current session using the available read/search/diff tools.
+7. During verification, read full files and relevant context, try to disprove the hypothesis, and keep only issues introduced or worsened by the current changes.
+8. Report only important confirmed findings with concrete evidence.
 
-Avoid style-only feedback and speculative concerns.
+## Rules
 
-## Review target
+- Review through these lenses: correctness / bugs, security / auth / permissions / input validation / secrets, data integrity / state transitions / idempotency, performance / unbounded work / N+1 / blocking operations, reliability / retries / cleanup / timeouts / concurrency, contracts / schema / API / typing / backward compatibility, and pattern regressions only if they create concrete risk.
+- Read the full source file for each candidate, not only the diff.
+- Read related tests/imports/exports/interfaces/config and nearby call sites as needed.
+- Try to disprove each hypothesis before confirming it.
+- Verify whether the issue is introduced or worsened by the current changes.
+- Cite only exact line numbers from files actually read.
+- Provide concrete evidence and a realistic failure scenario.
+- For security findings, identify a plausible trust boundary, attacker path, or missing guard when it creates concrete risk.
+- For performance findings, identify the trigger and scaling behavior.
+- For pattern-risk findings, explain what established pattern was broken and why it creates concrete risk.
+- For internal verification notes, use: `Verdict: CONFIRMED | DISCARDED`, category, severity, title, where, evidence, why it matters, and suggestion.
+- If evidence is weak/speculative, not tied to changed code, or the exact location cannot be verified, mark the candidate `DISCARDED`.
+- Include only `CONFIRMED` issues with concrete evidence in the final review.
+- Sort findings by severity, then by user or operational impact.
+- Never report pure style feedback, theoretical concerns without evidence, pre-existing issues not introduced or worsened by current changes, or vague pattern complaints without a concrete defect risk.
 
-1. Detect the target from `$ARGUMENTS`.
-   - If it contains a PR number or PR URL:
-     - Run `gh pr checkout [number]`
-     - Run `gh pr view [number] --json title,body`
-     - Save the diff with `DIFF_FILE=$(mktemp) && gh pr diff [number] > "$DIFF_FILE"`
-   - If no arguments are provided:
-     - Save the local diff with `DIFF_FILE=$(mktemp) && git diff HEAD > "$DIFF_FILE"`
-2. Read the diff file completely. If needed, use `read` in batches.
-3. If the diff is empty, output `No changes to review` and stop.
+## Output
 
-## Review workflow
+Return only the final review result.
 
-### 1) Build a shortlist of candidate issues
+If there are no reportable findings, print exactly:
 
-From changed lines only, generate a small set of strong candidate issues.
-Prefer fewer, stronger candidates.
-Merge duplicates.
-Cap the list at 8-10 candidates.
-
-For each candidate, note:
-
-- category
-- `file:line` or nearest changed location
-- a one-sentence hypothesis
-
-### 2) Verify each candidate before reporting it
-
-For each candidate:
-
-- read the full source file, not just the diff
-- read nearby code, imports, exports, interfaces, config, tests, and relevant call sites as needed
-- try to disprove the hypothesis before confirming it
-- confirm whether the issue is introduced or worsened by the current changes
-- cite only exact line numbers from files you actually read
-- provide a realistic failure scenario or impact
-
-Discard any candidate that is weak, speculative, pre-existing, or not tied to the current changes.
-
-### 3) Apply fail-fast review rules
-
-- Prefer explicit failure over silent degradation unless the code is at a true boundary that must translate errors safely.
-- Treat silent fallback parsing, swallowed exceptions, and pretend-success behavior as likely defects unless there is a documented compatibility requirement.
-- If a `catch` block does not add meaningful handling, treat it as suspicious.
-
-### 4) Report only important confirmed findings
-
-Include only confirmed issues with concrete evidence.
-Sort by severity, then by user or operational impact.
-Never report:
-
-- pure style feedback
-- theoretical concerns without evidence
-- issues not introduced or worsened by the current changes
-- vague pattern complaints without a concrete defect risk
-
-## Output format
-
-Return this exact structure:
-
-```markdown
-# Code Review
-
-[1-2 sentences describing what changed]
-
-## Verdict
-
-[correct|needs attention]
-
-## Findings
-
-[If there are no reportable findings: `Looks good to me`]
-[Otherwise, list only reportable findings as an enumerated list]
-
-### 1. **[P1] Title**
-
-**Severity:** [high|medium|low]
-**Area:** [security|bug|performance|reliability|data integrity|contracts|pattern risk]
-**Where:** [path/to/file:line-range]
-**Evidence:** [evidence]
-**Why it matters:** [impact]
-**Suggestion:** [suggestion]
-
-### 2. [...]
+```text
+Looks good to me
 ```
 
-## Additional rules
+If there are reportable findings, print this structure per finding:
 
-- Use priority tags in findings: `[P0]`, `[P1]`, `[P2]`, or `[P3]`.
-- Use `P0` only for universally critical issues that should block release or operation.
-- Keep line references as tight as possible.
-- Prefer exact file and line references over broad ranges.
-- If reviewing a PR, use the checked-out files for full-context inspection.
-- If there are no important confirmed findings, keep the output short, mark the verdict as `correct`, and say `Looks good to me`.
+```markdown
+severity: [severity]
+path: [path/to/file:line-range]
+[evidence, why it matters and suggestion]
+
+---
+
+[next finding]
+```
