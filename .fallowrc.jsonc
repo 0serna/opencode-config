@@ -1,4 +1,7 @@
 {
-  "ignorePatterns": ["dotfiles/opencode/plugins/**"],
+  "ignorePatterns": [
+    "dotfiles/opencode/plugins/**",
+    "dotfiles/pi/extensions/**"
+  ],
   "ignoreDependencies": ["@opencode-ai/plugin"]
 }
