@@ -15,6 +15,6 @@
     "npm:pi-ask-user",
     "npm:pi-web-access",
     "npm:@juicesharp/rpiv-advisor",
-    "npm:pi-rtk-optimizer",
+    "npm:pi-rtk-optimizer"
   ]
 }
