@@ -2,5 +2,7 @@
   "app.clear": "ctrl+d",
   "app.session.new": "ctrl+n",
   "tui.editor.undo": "ctrl+z",
-  "app.suspend": ""
+  "app.session.resume": "ctrl+l",
+  "app.suspend": "",
+  "app.model.select": ""
 }

@@ -13,6 +13,7 @@ Create a concise, factual commit message from the staged changes and run the com
 
 ## Rules
 
+- Do not use the `advisor` tool for this task; inspect the staged diff, choose the commit message, and run the commit independently.
 - On failure, do not retry, amend, or run corrective commands unless the user asks.
 - Format commit messages as `[type]([scope]): [description]` plus an optional body.
 - Use one of these types: `feat|fix|refactor|docs|style|test|ci|build|chore|perf`.

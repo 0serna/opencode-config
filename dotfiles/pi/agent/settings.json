@@ -1,11 +1,8 @@
 {
   "lastChangelogVersion": "0.74.0",
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.4-mini",
-  "defaultThinkingLevel": "medium",
-  "enabledModels": [
-    "openai-codex/gpt-5.4-mini"
-  ],
+  "defaultModel": "gpt-5.4",
+  "defaultThinkingLevel": "minimal",
   "hideThinkingBlock": true,
   "doubleEscapeAction": "tree",
   "enableSkillCommands": false,
@@ -15,6 +12,7 @@
     "npm:pi-ask-user",
     "npm:pi-web-access",
     "npm:@juicesharp/rpiv-advisor",
-    "npm:@baggiiiie/pi-rtk-rewrite"
+    "npm:@spences10/pi-confirm-destructive",
+    "npm:@sherif-fanous/pi-rtk"
   ]
 }
