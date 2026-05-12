@@ -1,9 +1,9 @@
 {
   "lastChangelogVersion": "0.74.0",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.4",
-  "defaultThinkingLevel": "low",
-  "enabledModels": ["openai-codex/gpt-5.4"],
+  "defaultProvider": "opencode",
+  "defaultModel": "minimax-m2.5-free",
+  "defaultThinkingLevel": "minimal",
+  "enabledModels": ["openai-codex/gpt-5.4", "opencode/minimax-m2.5-free"],
   "hideThinkingBlock": true,
   "doubleEscapeAction": "tree",
   "enableSkillCommands": false,

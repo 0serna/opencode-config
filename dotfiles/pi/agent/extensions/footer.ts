@@ -17,6 +17,8 @@ function formatPercent(value: number | null | undefined): string {
   return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
 }
 
+const CONTEXT_USAGE_WARNING_TOKENS = 100_000;
+
 type ContextUsage = {
   tokens: number | null;
   contextWindow: number;
@@ -41,6 +43,19 @@ function formatContextUsage(usage: ContextUsage | undefined): string {
   }
 
   return `${formatK(usage.tokens)}/${formatK(usage.contextWindow)}`;
+}
+
+function styleContextUsage(
+  theme: { fg(color: string, text: string): string },
+  usage: ContextUsage | undefined,
+): string {
+  const text = formatContextUsage(usage);
+
+  if ((usage?.tokens ?? 0) > CONTEXT_USAGE_WARNING_TOKENS) {
+    return theme.fg("mdHeading", text);
+  }
+
+  return theme.fg("dim", text);
 }
 
 // fallow-ignore-next-line complexity
@@ -104,11 +119,12 @@ export default function (pi: ExtensionAPI) {
             const model = ctx.model?.id;
             const cacheHit = formatCacheHit(ctx.sessionManager.getBranch());
 
+            const separator = theme.fg("dim", " | ");
             const sections = [
-              branch ? `${cwd} (${branch})` : cwd,
-              formatContextUsage(usage),
-              cacheHit,
-              model ? `${model} ${thinking}` : `${thinking}`,
+              theme.fg("dim", branch ? `${cwd} (${branch})` : cwd),
+              styleContextUsage(theme, usage),
+              theme.fg("dim", cacheHit),
+              theme.fg("dim", model ? `${model} ${thinking}` : `${thinking}`),
             ];
 
             // Agregar statuses de otras extensiones
@@ -122,9 +138,7 @@ export default function (pi: ExtensionAPI) {
               }
             }
 
-            return [
-              truncateToWidth(theme.fg("dim", sections.join(" · ")), width),
-            ];
+            return [truncateToWidth(sections.join(separator), width)];
           } catch {
             return [
               truncateToWidth(theme.fg("dim", "footer unavailable"), width),
