@@ -74,10 +74,10 @@ function formatCacheHit(entries: CacheUsageEntry[]): string {
 
   const denominator = input + cacheRead;
   if (denominator === 0) {
-    return "cache ?%";
+    return "KV ?%";
   }
 
-  return `cache ${formatPercent((cacheRead / denominator) * 100)}`;
+  return `KV ${formatPercent((cacheRead / denominator) * 100)}`;
 }
 
 function computeAndPublishStatus(ctx: ExtensionContext): void {

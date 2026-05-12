@@ -1,21 +1,13 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth } from "@earendil-works/pi-tui";
+import { basename } from "node:path";
 
 function formatCwd(cwd: string): string {
-  const home = process.env.HOME;
-  if (!home) {
-    return cwd;
-  }
-
-  if (cwd === home) {
+  if (cwd === process.env.HOME) {
     return "~";
   }
 
-  if (cwd.startsWith(`${home}/`)) {
-    return `~${cwd.slice(home.length)}`;
-  }
-
-  return cwd;
+  return basename(cwd);
 }
 
 export default function (pi: ExtensionAPI) {

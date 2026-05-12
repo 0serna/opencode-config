@@ -244,7 +244,7 @@ const QUOTA_SEGMENTS: Array<{
 }> = [
   { key: "remaining5h", label: "5h", threshold: 25, suffix: "%" },
   { key: "remaining7d", label: "7d", threshold: 25, suffix: "%" },
-  { key: "remainingCredits", label: "cr", threshold: 100, suffix: "" },
+  { key: "remainingCredits", label: "C", threshold: 100, suffix: "" },
 ];
 
 function formatCodexQuotaSegment(
