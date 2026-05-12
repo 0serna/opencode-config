@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, writeFileSync } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -53,6 +53,7 @@ const REQUEST_TIMEOUT_MS = 5000;
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
 const STATUS_KEY = "codex-quota";
 const LOG_FILE = "/tmp/pi-codex-quota.log";
+const CACHE_FILE = "/tmp/pi-codex-quota-cache.json";
 const OPENAI_AUTH_SOURCE_KEYS = [
   "openai",
   "codex",
@@ -76,6 +77,23 @@ function logEvent(eventName: string, details: Record<string, unknown>): void {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function readCache(): Promise<CodexQuotaStatus | null> {
+  try {
+    const raw = await readFile(CACHE_FILE, "utf8");
+    return JSON.parse(raw) as CodexQuotaStatus;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(status: CodexQuotaStatus): void {
+  try {
+    writeFileSync(CACHE_FILE, JSON.stringify(status), "utf8");
+  } catch {
+    return;
+  }
 }
 
 async function pathExists(path: string): Promise<boolean> {
@@ -255,6 +273,7 @@ async function fetchCodexQuotaStatus(): Promise<CodexQuotaStatus | null> {
 // fallow-ignore-next-line size
 export default function (pi: ExtensionAPI) {
   let lastStatus: CodexQuotaStatus | null = null;
+  let lastCtx: ExtensionContext | null = null;
   let poller: ReturnType<typeof setInterval> | null = null;
 
   function getStatusText(ctx: ExtensionContext): string | undefined {
@@ -281,24 +300,43 @@ export default function (pi: ExtensionAPI) {
   }
 
   function publishStatus(ctx: ExtensionContext, reason: string): void {
+    if (!lastStatus) {
+      logEvent("status_skipped", { reason });
+      return;
+    }
+
     const statusText = getStatusText(ctx);
     logEvent("status_published", { reason, status: statusText });
     setStatusSafely(ctx, reason, statusText);
   }
 
+  function publishLatest(reason: string): void {
+    if (lastCtx) publishStatus(lastCtx, reason);
+  }
+
+  function applyStatus(status: CodexQuotaStatus | null): void {
+    if (status) {
+      lastStatus = status;
+      writeCache(status);
+      publishLatest("fetch_refreshed");
+    }
+    // On fetch failure: keep lastStatus as-is (don't clear it)
+  }
+
   const refreshStatus = async (reason: string): Promise<void> => {
     try {
-      lastStatus = await fetchCodexQuotaStatus();
+      const status = await fetchCodexQuotaStatus();
       logEvent("status_resolved", {
         reason,
-        status: lastStatus,
+        status,
       });
+      applyStatus(status);
     } catch (error) {
       logEvent("status_error", {
         reason,
         message: getErrorMessage(error),
       });
-      lastStatus = null;
+      // Keep existing lastStatus on error
     }
   };
 
@@ -314,21 +352,40 @@ export default function (pi: ExtensionAPI) {
   }
 
   pi.on("session_start", (_event, ctx) => {
+    lastCtx = ctx;
+
     logEvent("extension_loaded", {
       cwd: ctx.cwd,
       model: ctx.model?.id ?? null,
     });
 
-    publishStatus(ctx, "session_start");
+    // Show cached data immediately while fetch is in flight
+    void readCache().then((cached) => {
+      if (cached) {
+        lastStatus = cached;
+        publishStatus(ctx, "session_start_cached");
+      }
+    });
+
     void refreshStatus("session_start");
     ensurePoller();
   });
 
   pi.on("turn_start", (_event, ctx) => {
+    lastCtx = ctx;
     publishStatus(ctx, "turn_start");
   });
 
   pi.on("turn_end", (_event, ctx) => {
+    lastCtx = ctx;
     publishStatus(ctx, "turn_end");
+  });
+
+  pi.on("session_shutdown", () => {
+    if (poller) {
+      clearInterval(poller);
+      poller = null;
+    }
+    lastCtx = null;
   });
 }

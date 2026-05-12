@@ -1,89 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 
-function formatK(value: number): string {
-  if (value < 1000) {
-    return `${value}`;
-  }
-
-  return `${(value / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-}
-
-function formatPercent(value: number | null | undefined): string {
-  if (value == null) {
-    return "?%";
-  }
-
-  return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
-}
-
-const CONTEXT_USAGE_WARNING_TOKENS = 100_000;
-
-type ContextUsage = {
-  tokens: number | null;
-  contextWindow: number;
-  percent: number | null;
-};
-
-type CacheUsageEntry = {
-  type: string;
-  message?: {
-    role?: string;
-    usage?: {
-      input: number;
-      cacheRead: number;
-    };
-  };
-};
-
-// fallow-ignore-next-line complexity
-function formatContextUsage(usage: ContextUsage | undefined): string {
-  if (usage?.tokens == null) {
-    return `?/${formatK(usage?.contextWindow ?? 0)}`;
-  }
-
-  return `${formatK(usage.tokens)}/${formatK(usage.contextWindow)}`;
-}
-
-function styleContextUsage(
-  theme: { fg(color: string, text: string): string },
-  usage: ContextUsage | undefined,
-): string {
-  const text = formatContextUsage(usage);
-
-  if ((usage?.tokens ?? 0) > CONTEXT_USAGE_WARNING_TOKENS) {
-    return theme.fg("mdHeading", text);
-  }
-
-  return theme.fg("dim", text);
-}
-
-// fallow-ignore-next-line complexity
-function formatCacheHit(entries: CacheUsageEntry[]): string {
-  let input = 0;
-  let cacheRead = 0;
-
-  for (const entry of entries) {
-    if (
-      entry.type !== "message" ||
-      entry.message?.role !== "assistant" ||
-      !entry.message.usage
-    ) {
-      continue;
-    }
-
-    input += entry.message.usage.input;
-    cacheRead += entry.message.usage.cacheRead;
-  }
-
-  const denominator = input + cacheRead;
-  if (denominator === 0) {
-    return "cache ?%";
-  }
-
-  return `cache ${formatPercent((cacheRead / denominator) * 100)}`;
-}
-
 function formatCwd(cwd: string): string {
   const home = process.env.HOME;
   if (!home) {
@@ -102,48 +19,40 @@ function formatCwd(cwd: string): string {
 }
 
 export default function (pi: ExtensionAPI) {
+  let requestRender: (() => void) | null = null;
+
+  pi.on("model_select", () => {
+    requestRender?.();
+  });
+
   pi.on("session_start", (_event, ctx) => {
     ctx.ui.setFooter((tui, theme, footerData) => {
+      requestRender = () => tui.requestRender();
+
       const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
 
       return {
         dispose: unsubscribe,
         invalidate() {},
-        // fallow-ignore-next-line complexity
         render(width: number): string[] {
-          try {
-            const usage = ctx.getContextUsage?.();
-            const cwd = formatCwd(ctx.cwd);
-            const branch = footerData.getGitBranch();
-            const thinking = pi.getThinkingLevel();
-            const model = ctx.model?.id;
-            const cacheHit = formatCacheHit(ctx.sessionManager.getBranch());
+          const cwd = formatCwd(ctx.cwd);
+          const branch = footerData.getGitBranch();
+          const thinking = pi.getThinkingLevel();
+          const modelId = ctx.model?.id;
 
-            const separator = theme.fg("dim", " | ");
-            const sections = [
-              theme.fg("dim", branch ? `${cwd} (${branch})` : cwd),
-              styleContextUsage(theme, usage),
-              theme.fg("dim", cacheHit),
-              theme.fg("dim", model ? `${model} ${thinking}` : `${thinking}`),
-            ];
+          const separator = theme.fg("dim", " | ");
+          const sections = [
+            theme.fg("dim", branch ? `${cwd} (${branch})` : cwd),
+            theme.fg(
+              "dim",
+              modelId ? `${modelId} · ${thinking}` : `${thinking}`,
+            ),
+            ...Array.from(footerData.getExtensionStatuses().values()).filter(
+              Boolean,
+            ),
+          ];
 
-            // Agregar statuses de otras extensiones
-            const extensionStatuses = footerData.getExtensionStatuses();
-            if (extensionStatuses.size > 0) {
-              const statusParts = Array.from(extensionStatuses.values()).filter(
-                Boolean,
-              );
-              if (statusParts.length > 0) {
-                sections.push(...statusParts);
-              }
-            }
-
-            return [truncateToWidth(sections.join(separator), width)];
-          } catch {
-            return [
-              truncateToWidth(theme.fg("dim", "footer unavailable"), width),
-            ];
-          }
+          return [truncateToWidth(sections.join(separator), width)];
         },
       };
     });
