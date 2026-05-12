@@ -3,7 +3,7 @@
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.4",
   "defaultThinkingLevel": "minimal",
-  "enabledModels": ["openai-codex/gpt-5.4", "opencode/minimax-m2.5-free"],
+  "enabledModels": ["openai-codex/gpt-5.4"],
   "hideThinkingBlock": true,
   "doubleEscapeAction": "tree",
   "enableSkillCommands": false,
