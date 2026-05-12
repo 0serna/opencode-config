@@ -1,6 +1,6 @@
 ---
 name: command-authoring
-description: Create, review, and maintain command files using the shared command structure. Use when adding or updating custom slash commands.
+description: Create, review, and maintain command/prompt files using the shared structure. Use when adding or updating custom slash commands/prompts.
 ---
 
 # Command/Prompt Authoring
