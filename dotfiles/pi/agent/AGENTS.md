@@ -24,6 +24,6 @@
 
 ## Validation Guidance
 
-- **Explore** (openspec-explore): Call `advisor()` when stuck on a complex problem, and before declaring done or crystallizing findings.
-- **Propose** (openspec-propose): Call `advisor()` after creating all artifacts to validate completeness and quality.
-- **Apply** (openspec-apply-change): Call `advisor()` when encountering blockers or design issues, and before declaring done to validate all tasks.
+- **Explore** (openspec-explore): Use `advisor` before declaring done or crystallizing findings.
+- **Propose** (openspec-propose): Use `advisor` after creating all artifacts to validate completeness and quality.
+- **Apply** (openspec-apply-change): Use `advisor` when encountering blockers or design issues, and before declaring done to validate all tasks.
