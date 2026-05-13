@@ -22,6 +22,9 @@ type CodexAuthFile = {
 type CodexUsageWindow = {
   used_percent?: number;
   remaining_percent?: number;
+  reset_after_seconds?: number;
+  reset_at?: number;
+  limit_window_seconds?: number;
 };
 
 type CodexUsageResponse = {
@@ -44,6 +47,8 @@ type CodexQuotaStatus = {
   remaining5h?: number;
   remaining7d?: number;
   remainingCredits?: number;
+  resetAfter5h?: number;
+  resetAfter7d?: number;
 };
 
 type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
@@ -233,46 +238,86 @@ async function callCodexUsageApi(resolvedAuth: {
 }
 
 // ---------------------------------------------------------------------------
+// Duration formatting
+// ---------------------------------------------------------------------------
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return "<1m";
+  if (seconds < 120 * 60) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 24 * 60 * 60) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}d`;
+}
+
+// ---------------------------------------------------------------------------
 // Status formatting
 // ---------------------------------------------------------------------------
 
-const QUOTA_SEGMENTS: Array<{
+type SegmentConfig = {
   key: keyof CodexQuotaStatus;
-  label: string;
-  threshold: number;
   suffix: string;
-}> = [
-  { key: "remaining5h", label: "5h", threshold: 25, suffix: "%" },
-  { key: "remaining7d", label: "7d", threshold: 25, suffix: "%" },
-  { key: "remainingCredits", label: "C", threshold: 100, suffix: "" },
+  /** Default label. Overridden by resetField when available. */
+  label?: string;
+  /** If set, compute dynamic label from this reset-duration field. */
+  resetField?: keyof CodexQuotaStatus;
+  /** Warn (mdHeading) when value drops below this threshold. Omit to never warn. */
+  warnThreshold?: number;
+};
+
+const QUOTA_SEGMENTS: SegmentConfig[] = [
+  {
+    key: "remaining5h",
+    suffix: "%",
+    resetField: "resetAfter5h",
+    label: "5h",
+    warnThreshold: 25,
+  },
+  {
+    key: "remaining7d",
+    suffix: "%",
+    resetField: "resetAfter7d",
+    label: "7d",
+    warnThreshold: 10,
+  },
+  {
+    key: "remainingCredits",
+    suffix: "",
+    label: "C",
+  },
 ];
 
-function formatCodexQuotaSegment(
-  label: string,
-  value: number,
-  threshold: number,
-  ctx: ExtensionContext,
-  suffix: string,
+function getSegmentLabel(
+  segment: SegmentConfig,
+  status: CodexQuotaStatus,
 ): string {
-  const segment = `${label} ${value}${suffix}`;
-  return value < threshold
-    ? ctx.ui.theme.fg("mdHeading", segment)
-    : ctx.ui.theme.fg("dim", segment);
+  if (segment.resetField) {
+    const resetSeconds = status[segment.resetField];
+    if (resetSeconds != null) return formatDuration(resetSeconds);
+  }
+  return segment.label ?? "?";
+}
+
+function formatCodexQuotaSegment(
+  segment: SegmentConfig,
+  status: CodexQuotaStatus,
+  ctx: ExtensionContext,
+): string | null {
+  const value = status[segment.key];
+  if (value == null) return null;
+  const label = getSegmentLabel(segment, status);
+  const segmentStr = `${label} ${value}${segment.suffix}`;
+  if (segment.warnThreshold != null && value < segment.warnThreshold) {
+    return ctx.ui.theme.fg("mdHeading", segmentStr);
+  }
+  return ctx.ui.theme.fg("dim", segmentStr);
 }
 
 function formatCodexQuotaStatus(
   status: CodexQuotaStatus,
   ctx: ExtensionContext,
 ): string | null {
-  const parts = QUOTA_SEGMENTS.filter((s) => status[s.key] != null).map((s) =>
-    formatCodexQuotaSegment(
-      s.label,
-      status[s.key]!,
-      s.threshold,
-      ctx,
-      s.suffix,
-    ),
-  );
+  const parts = QUOTA_SEGMENTS.map((s) =>
+    formatCodexQuotaSegment(s, status, ctx),
+  ).filter((p): p is string => p != null);
   return parts.length ? parts.join(ctx.ui.theme.fg("dim", " · ")) : null;
 }
 
@@ -287,16 +332,22 @@ function getCreditsFromResponse(
   return parseCredits(credits.balance, credits.unlimited);
 }
 
+function resetSeconds(
+  window: CodexUsageWindow | undefined,
+): number | undefined {
+  return window?.reset_after_seconds;
+}
+
 function buildStatusFromUsage(usage: CodexUsageResponse): CodexQuotaStatus {
   const rateLimit = usage.rate_limit ?? usage.rate_limits;
+  const primary = rateLimit?.primary_window;
+  const secondary = rateLimit?.secondary_window;
   return {
-    remaining5h: rateLimit
-      ? toRemainingPercent(rateLimit.primary_window)
-      : undefined,
-    remaining7d: rateLimit
-      ? toRemainingPercent(rateLimit.secondary_window)
-      : undefined,
+    remaining5h: toRemainingPercent(primary),
+    remaining7d: toRemainingPercent(secondary),
     remainingCredits: getCreditsFromResponse(usage.credits),
+    resetAfter5h: resetSeconds(primary),
+    resetAfter7d: resetSeconds(secondary),
   };
 }
 
