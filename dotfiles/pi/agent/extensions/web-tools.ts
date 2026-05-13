@@ -1,18 +1,34 @@
 import { StringEnum } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
-import { appendFileSync } from "fs";
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "fs";
+import { dirname } from "path";
 import { Type } from "typebox";
 
 // ===========================================================================
 // Logging
 // ===========================================================================
 
-const LOG_FILE = "/tmp/pi-web-tools.log";
+const LOG_FILE = `${process.env.HOME}/.local/state/pi/web-tools.log`;
 
 function log(msg: string): void {
   try {
+    mkdirSync(dirname(LOG_FILE), { recursive: true });
     appendFileSync(LOG_FILE, `${new Date().toISOString()} ${msg}\n`);
+    const stat = statSync(LOG_FILE);
+    if (stat.size > 160_000) {
+      const content = readFileSync(LOG_FILE, "utf-8");
+      const lines = content.split("\n");
+      if (lines.length > 2000) {
+        writeFileSync(LOG_FILE, lines.slice(-2000).join("\n"));
+      }
+    }
   } catch {
     // ignore
   }
@@ -177,18 +193,55 @@ function extractContentText(
   return text.trim();
 }
 
+type ExaContentsStatus = {
+  status?: string;
+  tag?: string;
+  httpStatusCode?: number;
+};
+
+type ExaContentsResponse = {
+  results?: Array<{ text?: string }>;
+  statuses?: ExaContentsStatus[];
+};
+
+function getFirstExaStatus(
+  data: ExaContentsResponse | null,
+): ExaContentsStatus | undefined {
+  return data?.statuses?.[0];
+}
+
+function isExaStatusError(
+  status: ExaContentsStatus | undefined,
+): status is ExaContentsStatus & { status: string } {
+  return Boolean(status?.status && status.status !== "success");
+}
+
 async function callExaContents(url: string): Promise<string | null> {
   const response = await doExaFetch(EXA_CONTENTS_URL, {
     urls: [url],
     text: true,
   });
-  const data = await parseExaResponse<{
-    results?: Array<{ text?: string }>;
-  }>(response, "exa_contents");
+  const data = await parseExaResponse<ExaContentsResponse>(
+    response,
+    "exa_contents",
+  );
+
   const text = extractContentText(data);
-  if (!text) {
+  const status = getFirstExaStatus(data);
+
+  if (isExaStatusError(status)) {
+    log(
+      `exa_contents error url="${url}" status="${status.status}" tag="${status.tag}" httpCode=${status.httpStatusCode}`,
+    );
+    return text;
+  }
+
+  if (text) {
+    log(`exa_contents success url="${url}" status=success len=${text.length}`);
+  } else {
     log(`exa_contents insufficient url="${url}"`);
   }
+
   return text;
 }
 
@@ -395,15 +448,21 @@ async function executeWebSearch(
     numResults,
     recencyFilter,
     domainFilter,
-  }).catch(() => null);
+  }).catch((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    log(`web_search fail query="${query.trim()}" error="${msg}"`);
+    return null;
+  });
   if (data == null) {
-    log(`web_search fail query="${query.trim()}"`);
     return {
       content: [{ type: "text" as const, text: "Search failed" }],
       details: {},
       isError: true,
     };
   }
+  log(
+    `exa_search success query="${query.trim()}" results=${getResultCount(data)}`,
+  );
   return {
     content: [{ type: "text" as const, text: formatSearchResponse(data) }],
     details: { sourceCount: getResultCount(data) },
@@ -455,6 +514,7 @@ async function tryFetchContent(url: string): Promise<{
   if (exaContent) return { content: exaContent, fallback: false };
   log(`web_fetch fallback url="${url}"`);
   const httpContent = await extractViaHttp(url);
+  log(`web_fetch http_success url="${url}" bytes=${httpContent.length}`);
   return { content: httpContent, fallback: true };
 }
 
