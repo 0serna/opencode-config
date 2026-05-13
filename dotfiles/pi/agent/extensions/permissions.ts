@@ -1,5 +1,11 @@
-import { spawnSync } from "node:child_process";
-import { appendFileSync } from "node:fs";
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname } from "node:path";
 
 import {
   isToolCallEventType,
@@ -7,7 +13,6 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 type SensitiveMatch = {
-  reason: string;
   segment: string;
 };
 
@@ -20,7 +25,7 @@ interface CmdInfo {
 }
 
 const sessionApprovals = new Set<string>();
-const LOG_FILE = "/tmp/pi-permission-gate.log";
+const LOG_FILE = `${process.env.HOME}/.local/state/pi/permissions.log`;
 
 // ---------------------------------------------------------------------------
 // Sensitive command rule sets
@@ -28,101 +33,78 @@ const LOG_FILE = "/tmp/pi-permission-gate.log";
 
 const SENSITIVE_GIT_RULES: Array<{
   when: (candidate: string) => boolean;
-  reason: string;
 }> = [
+  { when: (c) => /\bgit\s+push\b/i.test(c) && /--delete\b/i.test(c) },
   {
-    when: (c) => /\bgit\s+push\b/i.test(c),
-    reason: "git push mutates a remote",
+    when: (c) =>
+      /\bgit\s+push\b/i.test(c) && /--force(?:-with-lease)?\b|-f\b/i.test(c),
   },
-  {
-    when: (c) => /\bgit\s+reset\b/i.test(c) && /--hard\b/i.test(c),
-    reason: "git reset --hard rewrites the working tree",
-  },
+  { when: (c) => /\bgit\s+push\b/i.test(c) },
+  { when: (c) => /\bgit\s+reset\b/i.test(c) && /--hard\b/i.test(c) },
   {
     when: (c) =>
       /\bgit\s+clean\b/i.test(c) &&
       /(?:(?:^|\s)-[^\s]*f\b)|(?:--force\b)/i.test(c),
-    reason: "git clean with force deletes files",
   },
-  {
-    when: (c) => /\bgit\s+rebase\b/i.test(c),
-    reason: "git rebase rewrites history",
-  },
-  {
-    when: (c) => /\bgit\s+commit\b/i.test(c) && /--amend\b/i.test(c),
-    reason: "git commit --amend rewrites history",
-  },
+  { when: (c) => /\bgit\s+rebase\b/i.test(c) },
+  { when: (c) => /\bgit\s+commit\b/i.test(c) && /--amend\b/i.test(c) },
   {
     when: (c) => /\bgit\s+checkout\b/i.test(c) && /(?:^|\s)-[^\s]*f\b/i.test(c),
-    reason: "git checkout -f discards changes",
   },
   {
     when: (c) =>
       /\bgit\s+switch\b/i.test(c) && /(?:^|\s)--discard-changes\b/i.test(c),
-    reason: "git switch --discard-changes discards changes",
   },
   {
     when: (c) =>
       /\bgit\s+branch\b/i.test(c) &&
       /(?:(?:^|\s)-[^\s]*D\b)|(?:(?:^|\s)--delete\b)/i.test(c),
-    reason: "git branch delete removes branches",
   },
   {
     when: (c) =>
       /\bgit\s+tag\b/i.test(c) && /(?:^|\s)-d\b|(?:^|\s)--delete\b/i.test(c),
-    reason: "git tag delete removes tags",
-  },
-  {
-    when: (c) => /\bgit\s+push\b/i.test(c) && /--delete\b/i.test(c),
-    reason: "git push --delete removes remote refs",
-  },
-  {
-    when: (c) =>
-      /\bgit\s+push\b/i.test(c) && /--force(?:-with-lease)?\b|-f\b/i.test(c),
-    reason: "git push force rewrites remote refs",
   },
 ];
 
-const SENSITIVE_GH_PATTERNS: Array<{
-  test: RegExp;
-  reason: string;
-}> = [
-  {
-    test: /\bgh\s+pr\s+(create|merge|close|reopen|edit|ready)\b/i,
-    reason: "gh pr modifies pull requests",
-  },
-  {
-    test: /\bgh\s+issue\s+(create|edit|close|reopen|delete|transfer|pin|unpin|lock|unlock)\b/i,
-    reason: "gh issue modifies issues",
-  },
-  {
-    test: /\bgh\s+repo\s+(create|delete|archive|unarchive|edit|rename|fork)\b/i,
-    reason: "gh repo modifies repositories",
-  },
-  {
-    test: /\bgh\s+release\s+(create|edit|delete|upload)\b/i,
-    reason: "gh release publishes or deletes releases",
-  },
-  {
-    test: /\bgh\s+workflow\s+(run|enable|disable)\b/i,
-    reason: "gh workflow triggers or modifies workflows",
-  },
-  {
-    test: /\bgh\s+run\s+(cancel|delete|rerun)\b/i,
-    reason: "gh run modifies runs",
-  },
+const SENSITIVE_GH_PATTERNS: RegExp[] = [
+  /\bgh\s+pr\s+(create|merge|close|reopen|edit|ready)\b/i,
+  /\bgh\s+issue\s+(create|edit|close|reopen|delete|transfer|pin|unpin|lock|unlock)\b/i,
+  /\bgh\s+repo\s+(create|delete|archive|unarchive|edit|rename|fork)\b/i,
+  /\bgh\s+release\s+(create|edit|delete|upload)\b/i,
+  /\bgh\s+workflow\s+(run|enable|disable)\b/i,
+  /\bgh\s+run\s+(cancel|delete|rerun)\b/i,
+];
+
+const SENSITIVE_SYSTEM_PATTERNS: RegExp[] = [
+  /rm\s+(?:-[^\s]*r[^\s]*f\b|--recursive\b)/i,
+  /\bdd\b/i,
+  /\b(?:mkfs\.\w+|fdisk|parted)\b/i,
+  /\b(?:shutdown|reboot|poweroff|halt)\b/i,
+  /\b(?:chmod|chown)\s+(?:-[^\s]+\s+)?777\b/i,
+  /\b(?:curl|wget)\b.*\|\s*(?:bash|sh|zsh|fish)\b/i,
+  /\bsudo\b/i,
 ];
 
 // ---------------------------------------------------------------------------
 // Logging
 // ---------------------------------------------------------------------------
 
-function logEvent(eventName: string, details: Record<string, unknown>): void {
+const MAX_LOG_BYTES = 160_000;
+const MAX_LOG_LINES = 2000;
+
+function log(msg: string): void {
   try {
-    appendFileSync(
-      LOG_FILE,
-      `${new Date().toISOString()} ${eventName} ${JSON.stringify(details)}\n`,
-    );
+    mkdirSync(dirname(LOG_FILE), { recursive: true });
+    const line = `${new Date().toISOString()} ${msg}\n`;
+    appendFileSync(LOG_FILE, line);
+    const currentSize = statSync(LOG_FILE).size;
+    if (currentSize > MAX_LOG_BYTES) {
+      const content = readFileSync(LOG_FILE, "utf-8");
+      const allLines = content.split("\n");
+      if (allLines.length > MAX_LOG_LINES) {
+        writeFileSync(LOG_FILE, allLines.slice(-MAX_LOG_LINES).join("\n"));
+      }
+    }
   } catch {
     // Logging must never break command handling.
   }
@@ -156,7 +138,13 @@ function stripLeadingWrappers(segment: string): string {
 }
 
 function extractShellWrappedCommand(segment: string): string | null {
-  const wrapped = stripLeadingWrappers(segment);
+  const PRIVILEGE_RE = /^(?:sudo|doas|pkexec)\s+/i;
+  let wrapped = stripLeadingWrappers(segment);
+  // Strip privilege-escalation prefixes before matching shell wrapper
+  let m: RegExpExecArray | null;
+  while ((m = PRIVILEGE_RE.exec(wrapped)) != null && m[0].length > 0) {
+    wrapped = wrapped.slice(m[0].length).trim();
+  }
   const match = wrapped.match(
     /^(?:bash|sh|zsh|fish)\s+(?:-[^\s]*c[^\s]*|-c)\s+(['"])([\s\S]*)\1$/i,
   );
@@ -167,63 +155,51 @@ function extractShellWrappedCommand(segment: string): string | null {
 // Sensitivity detection
 // ---------------------------------------------------------------------------
 
-function isSensitiveGitSegment(segment: string): string | null {
+function isSensitiveGitSegment(segment: string): boolean {
   const candidate = stripLeadingWrappers(segment);
-  if (!/^git\b/i.test(candidate)) {
-    return null;
-  }
-  return SENSITIVE_GIT_RULES.find((r) => r.when(candidate))?.reason ?? null;
+  if (!/^git\b/i.test(candidate)) return false;
+  return SENSITIVE_GIT_RULES.some((r) => r.when(candidate));
 }
 
-function checkGhMethod(candidate: string): string | null {
+function checkGhMethod(candidate: string): boolean {
   const methodMatch = candidate.match(
     /(?:\s|^)(?:-X|--method)(?:\s+|=)([A-Za-z]+)/i,
   );
-  if (methodMatch == null) return null;
-  const method = methodMatch[1].toUpperCase();
-  return method !== "GET" ? `gh api uses ${method}` : null;
+  if (methodMatch == null) return false;
+  return methodMatch[1].toUpperCase() !== "GET";
 }
 
-function checkGhApi(candidate: string): string | null {
-  if (!/\bgh\s+api\b/i.test(candidate)) {
-    return null;
-  }
-  const methodResult = checkGhMethod(candidate);
-  if (methodResult != null) return methodResult;
-  const sendsPayload = /\s(?:-f|-F|--field|--raw-field|--input)\b/i;
-  return sendsPayload.test(candidate)
-    ? "gh api sends a mutating payload"
-    : null;
+function checkGhApi(candidate: string): boolean {
+  if (!/\bgh\s+api\b/i.test(candidate)) return false;
+  if (checkGhMethod(candidate)) return true;
+  return /\s(?:-f|-F|--field|--raw-field|--input)\b/i.test(candidate);
 }
 
-function isSensitiveGhSegment(segment: string): string | null {
+function isSensitiveGhSegment(segment: string): boolean {
   const candidate = stripLeadingWrappers(segment);
-  if (!/^gh\b/i.test(candidate)) {
-    return null;
-  }
-  const fromPatterns = SENSITIVE_GH_PATTERNS.find((p) =>
-    p.test.test(candidate),
-  )?.reason;
-  return fromPatterns ?? checkGhApi(candidate);
+  if (!/^gh\b/i.test(candidate)) return false;
+  if (SENSITIVE_GH_PATTERNS.some((p) => p.test(candidate))) return true;
+  return checkGhApi(candidate);
 }
 
-function checkWrappedSegment(segment: string): SensitiveMatch | null {
+function isSensitiveSystemSegment(segment: string): boolean {
+  const candidate = stripLeadingWrappers(segment);
+  return SENSITIVE_SYSTEM_PATTERNS.some((p) => p.test(candidate));
+}
+
+function checkWrappedOrSystem(segment: string): boolean {
   const wrappedCommand = extractShellWrappedCommand(segment);
-  if (wrappedCommand == null) return null;
-  const nestedMatch = findSensitiveMatch(wrappedCommand);
-  return nestedMatch != null ? { reason: nestedMatch.reason, segment } : null;
+  if (wrappedCommand != null && findSensitiveMatch(wrappedCommand) != null) {
+    return true;
+  }
+  return isSensitiveSystemSegment(segment);
 }
 
 function checkSegment(segment: string): SensitiveMatch | null {
-  const gitReason = isSensitiveGitSegment(segment);
-  if (gitReason != null) {
-    return { reason: gitReason, segment };
-  }
-  const ghReason = isSensitiveGhSegment(segment);
-  if (ghReason != null) {
-    return { reason: ghReason, segment };
-  }
-  return checkWrappedSegment(segment);
+  if (isSensitiveGitSegment(segment)) return { segment };
+  if (isSensitiveGhSegment(segment)) return { segment };
+  if (checkWrappedOrSystem(segment)) return { segment };
+  return null;
 }
 
 function findSensitiveMatch(command: string): SensitiveMatch | null {
@@ -236,18 +212,23 @@ function findSensitiveMatch(command: string): SensitiveMatch | null {
   return null;
 }
 
-function getApprovalScope(cwd: string): string {
-  const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
-    cwd,
-    encoding: "utf8",
-    timeout: 500,
-    shell: false,
-  });
-  if (result.error == null && result.status === 0) {
-    const repoRoot = (result.stdout as string).trim();
-    if (repoRoot !== "") {
-      return repoRoot;
+async function getApprovalScope(
+  cwd: string,
+  pi: ExtensionAPI,
+): Promise<string> {
+  try {
+    const result = await pi.exec("git", ["rev-parse", "--show-toplevel"], {
+      cwd,
+      timeout: 500,
+    });
+    if (result.code === 0) {
+      const repoRoot = result.stdout.trim();
+      if (repoRoot !== "") {
+        return repoRoot;
+      }
     }
+  } catch {
+    // Fall through to cwd return
   }
   return cwd;
 }
@@ -263,9 +244,13 @@ function getCommandFromEvent(event: unknown): string | null {
   return command;
 }
 
-function buildCmdInfo(command: string, cwd: string): CmdInfo {
+async function buildCmdInfo(
+  command: string,
+  cwd: string,
+  pi: ExtensionAPI,
+): Promise<CmdInfo> {
   const normalizedCommand = normalizeCommand(command);
-  const scope = getApprovalScope(cwd);
+  const scope = await getApprovalScope(cwd, pi);
   const approvalKey = `${scope}\u0000${normalizedCommand}`;
   return { command, normalizedCommand, scope, approvalKey };
 }
@@ -281,26 +266,25 @@ async function promptAndHandleChoice(
   approvalKey: string,
   scope: string,
 ): Promise<{ block: true; reason: string } | undefined> {
-  const choice = await ctx.ui.select(
-    `Allow sensitive command\n\nCommand:\n${command}\n\nReason: ${sensitiveMatch.reason}\nDetected segment: ${sensitiveMatch.segment}`,
-    ["Allow once", "Allow for this session", "Block"],
+  const choice = await ctx.ui.select(`Allow sensitive command\n\n${command}`, [
+    "Allow once",
+    "Allow for this session",
+    "Block",
+  ]);
+  log(
+    `user_choice cwd="${ctx.cwd}" scope="${scope}" choice="${choice ?? "dismissed"}" command="${command}"`,
   );
-  logEvent("user_choice", {
-    cwd: ctx.cwd,
-    scope,
-    choice: choice ?? "dismissed",
-    reason: sensitiveMatch.reason,
-    command,
-  });
   if (choice === "Allow for this session") {
     sessionApprovals.add(approvalKey);
-    logEvent("session_approval_stored", { cwd: ctx.cwd, scope, command });
+    log(
+      `session_approval_stored cwd="${ctx.cwd}" scope="${scope}" command="${command}"`,
+    );
     return;
   }
   if (choice === "Allow once") {
     return;
   }
-  logEvent("blocked_by_user", { cwd: ctx.cwd, scope, command });
+  log(`blocked_by_user cwd="${ctx.cwd}" scope="${scope}" command="${command}"`);
   return { block: true, reason: "Blocked by user" };
 }
 
@@ -313,16 +297,12 @@ async function handleSensitiveCommand(
   const sensitiveMatch = findSensitiveMatch(command);
   if (sensitiveMatch == null) return;
 
-  logEvent("sensitive_detected", {
-    cwd: ctx.cwd,
-    scope,
-    reason: sensitiveMatch.reason,
-    segment: sensitiveMatch.segment,
-    command,
-  });
+  log(
+    `sensitive_detected cwd="${ctx.cwd}" scope="${scope}" command="${command}"`,
+  );
 
   if (!ctx.hasUI) {
-    logEvent("blocked_no_ui", { cwd: ctx.cwd, scope, command });
+    log(`blocked_no_ui cwd="${ctx.cwd}" scope="${scope}" command="${command}"`);
     return {
       block: true,
       reason: "Sensitive command blocked (no UI for confirmation)",
@@ -341,14 +321,17 @@ async function handleSensitiveCommand(
 async function handleToolCall(
   event: unknown,
   ctx: ExtensionContext,
+  pi: ExtensionAPI,
 ): Promise<{ block: true; reason: string } | { block?: false } | undefined> {
   const command = getCommandFromEvent(event);
   if (command == null) return;
 
-  const { scope, approvalKey } = buildCmdInfo(command, ctx.cwd);
+  const { scope, approvalKey } = await buildCmdInfo(command, ctx.cwd, pi);
 
   if (isSessionApproved(approvalKey)) {
-    logEvent("session_approval_reused", { cwd: ctx.cwd, scope, command });
+    log(
+      `session_approval_reused cwd="${ctx.cwd}" scope="${scope}" command="${command}"`,
+    );
     return;
   }
 
@@ -360,5 +343,5 @@ async function handleToolCall(
 // ---------------------------------------------------------------------------
 
 export default function (pi: ExtensionAPI) {
-  pi.on("tool_call", handleToolCall);
+  pi.on("tool_call", (event, ctx) => handleToolCall(event, ctx, pi));
 }
