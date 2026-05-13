@@ -21,3 +21,9 @@
 
 - MUST prefer GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata.
 - If necessary, clone repositories to temporary directories `/tmp` to analyze them more efficiently.
+
+## Validation Guidance
+
+- **Explore** (openspec-explore): Call `advisor()` when stuck on a complex problem, and before declaring done or crystallizing findings.
+- **Propose** (openspec-propose): Call `advisor()` after creating all artifacts to validate completeness and quality.
+- **Apply** (openspec-apply-change): Call `advisor()` when encountering blockers or design issues, and before declaring done to validate all tasks.
