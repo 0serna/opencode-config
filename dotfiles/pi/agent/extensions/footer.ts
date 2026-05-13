@@ -31,17 +31,22 @@ export default function (pi: ExtensionAPI) {
           const branch = footerData.getGitBranch();
           const thinking = pi.getThinkingLevel();
           const modelId = ctx.model?.id;
-
           const separator = theme.fg("dim", " | ");
+          const extStatuses = footerData.getExtensionStatuses();
+          const order = ["context-usage", "codex-quota"];
+          const ordered = order.map((k) => extStatuses.get(k)).filter(Boolean);
+          const remaining = Array.from(extStatuses.entries())
+            .filter(([k]) => !order.includes(k))
+            .map(([, v]) => v);
+
           const sections = [
             theme.fg("dim", branch ? `${cwd} (${branch})` : cwd),
             theme.fg(
               "dim",
               modelId ? `${modelId} · ${thinking}` : `${thinking}`,
             ),
-            ...Array.from(footerData.getExtensionStatuses().values()).filter(
-              Boolean,
-            ),
+            ...ordered,
+            ...remaining,
           ];
 
           return [truncateToWidth(sections.join(separator), width)];
