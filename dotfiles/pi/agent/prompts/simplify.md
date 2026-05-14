@@ -10,7 +10,7 @@ Simplify the requested code or the current diff by making high-confidence clarit
 $ARGUMENTS
 ```
 
-- **No arguments provided**: Inspect current changes (`git diff HEAD`).
+- **No arguments provided**: Inspect current changes `git diff HEAD --stat`.
 - **Clear arguments** (files, paths, or a well-defined scope): Use that scope.
 - **Unclear or ambiguous arguments**: Stop and ask the user for clarification before proceeding.
 

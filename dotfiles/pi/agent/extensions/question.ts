@@ -24,7 +24,6 @@ type DisplayOption = OptionWithDesc & { isOther?: boolean };
 interface QuestionDetails {
   question: string;
   options: string[];
-  recommended: string | null;
   answer: string | null;
   wasCustom?: boolean;
   comment?: string;
@@ -73,10 +72,8 @@ const QuestionParams = Type.Object({
     description: "The question text to display to the user",
   }),
   options: Type.Array(OptionSchema, {
-    description: "Options for the user to choose from",
-  }),
-  recommended: Type.String({
-    description: "Label of the option you recommend.",
+    description:
+      "Options for the user to choose from. The first option is treated as your recommendation and will be visually marked.",
   }),
 });
 
@@ -115,11 +112,10 @@ function buildOptionLine(
   index: number,
   selectedIndex: number,
   isCommentOpen: boolean,
-  recommendedLabel: string | null,
   theme: Theme,
 ): string {
   const isSelected = index === selectedIndex;
-  const isRecommended = !opt.isOther && opt.label === recommendedLabel;
+  const isRecommended = !opt.isOther && index === 0;
   const prefix = optionPrefix(opt, index, isSelected, isCommentOpen, theme);
   return optionColor(prefix, opt, isSelected, isRecommended, theme);
 }
@@ -135,17 +131,9 @@ function renderOptionLine(
   index: number,
   optionIndex: number,
   isCommentOpen: boolean,
-  recommendedLabel: string | null,
   theme: Theme,
 ) {
-  const line = buildOptionLine(
-    opt,
-    index,
-    optionIndex,
-    isCommentOpen,
-    recommendedLabel,
-    theme,
-  );
+  const line = buildOptionLine(opt, index, optionIndex, isCommentOpen, theme);
   lines.push(truncateToWidth(line, width));
   if (opt.description) {
     lines.push(
@@ -160,7 +148,6 @@ function renderAllOptions(
   allOptions: DisplayOption[],
   optionIndex: number,
   isCommentMode: boolean,
-  recommendedLabel: string | null,
   theme: Theme,
 ) {
   for (let i = 0; i < allOptions.length; i++) {
@@ -171,7 +158,6 @@ function renderAllOptions(
       i,
       optionIndex,
       isCommentMode && i === optionIndex,
-      recommendedLabel,
       theme,
     );
   }
@@ -197,7 +183,6 @@ function renderFrame(
   allOptions: DisplayOption[],
   optionIndex: number,
   editMode: "comment" | "other" | false,
-  recommendedLabel: string | null,
   editor: Editor,
   question: string,
   theme: Theme,
@@ -219,7 +204,6 @@ function renderFrame(
     allOptions,
     optionIndex,
     editMode === "comment",
-    recommendedLabel,
     theme,
   );
 
@@ -248,15 +232,10 @@ function renderFrame(
 // Result building
 // ===========================================================================
 
-function makeBaseDetails(
-  question: string,
-  options: OptionWithDesc[],
-  recommendedLabel: string | null,
-) {
+function makeBaseDetails(question: string, options: OptionWithDesc[]) {
   return {
     question,
     options: options.map((o) => o.label),
-    recommended: recommendedLabel,
   };
 }
 
@@ -317,9 +296,8 @@ function buildResult(
   result: ResultValue | null,
   question: string,
   options: OptionWithDesc[],
-  recommendedLabel: string | null,
 ) {
-  const base = makeBaseDetails(question, options, recommendedLabel);
+  const base = makeBaseDetails(question, options);
   if (!result || result.type === "cancel") return resultCancelled(base);
   return buildResultPrompted(base, result);
 }
@@ -464,7 +442,7 @@ function renderNormalAnswer(theme: Theme, answer: string): Text {
 
 async function execute(
   _toolCallId: unknown,
-  params: { question: string; options: OptionWithDesc[]; recommended: string },
+  params: { question: string; options: OptionWithDesc[] },
   _signal: unknown,
   _onUpdate: unknown,
   ctx: UIContext,
@@ -480,24 +458,13 @@ async function execute(
       details: {
         question: params.question,
         options: params.options.map((o) => o.label),
-        recommended: params.recommended,
         answer: null,
       } as QuestionDetails,
     };
   }
 
-  const sortedOptions = [...params.options];
-  const recIndex = sortedOptions.findIndex(
-    (o) => o.label === params.recommended,
-  );
-  if (recIndex > 0) {
-    const [rec] = sortedOptions.splice(recIndex, 1);
-    sortedOptions.unshift(rec);
-  }
-  const recommendedLabel = recIndex >= 0 ? params.recommended : null;
-
   const allOptions: DisplayOption[] = [
-    ...sortedOptions,
+    ...params.options,
     { label: "Other", isOther: true },
   ];
 
@@ -562,7 +529,6 @@ async function execute(
         allOptions,
         state.optionIndex,
         state.editMode,
-        recommendedLabel,
         editor,
         params.question,
         theme,
@@ -596,7 +562,7 @@ async function execute(
     }
   });
 
-  return buildResult(result, params.question, params.options, recommendedLabel);
+  return buildResult(result, params.question, params.options);
 }
 
 // ===========================================================================
@@ -649,7 +615,7 @@ export default function question(pi: ExtensionAPI) {
     name: "question",
     label: "Question",
     description:
-      'Ask the user a question with customizable options and let them pick from the list. You must mark one option as recommended. The extension automatically adds an "Other" option for free-form input. Use when you need user input to proceed.',
+      'Ask the user a question with customizable options and let them pick from the list. The first option is treated as your recommendation and is visually marked. The extension automatically adds an "Other" option for free-form input. Use when you need user input to proceed.',
     parameters: QuestionParams,
     execute,
     renderCall,

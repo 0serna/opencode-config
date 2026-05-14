@@ -22,14 +22,26 @@ $ARGUMENTS
      - `gh pr view [number] --json title,body`
      - `gh pr diff [number]`
    - If no arguments:
-     - `git diff HEAD`
-2. If the diff is empty, output `No changes to review` and STOP.
-3. Read the diff output to inspect the changes. If the diff is large, read in batches.
-4. From the diff, generate a small set of strong candidate issues. For each candidate, note category, `file:line`, and one-sentence hypothesis.
-5. Prefer fewer, stronger candidates; merge duplicate candidates.
-6. Verify each candidate directly in the current session using the available read/search/diff tools.
-7. During verification, read full files and relevant context, try to disprove the hypothesis, and keep only issues introduced or worsened by the current changes.
-8. Report only important confirmed findings with concrete evidence.
+     - `git diff HEAD --stat`
+
+2. **If a PR was detected:**
+   a. If the diff is empty, output `No changes to review` and STOP.
+   b. Read the diff output to inspect the changes. If the diff is large, read in batches.
+   c. Follow the common verification workflow.
+
+3. **If local changes were detected:**
+   a. If the stat output is empty, output `No changes to review` and STOP.
+   b. From the stat output, select files for closer inspection.
+   c. For each selected file, inspect changes with `git diff HEAD -- <file>`.
+   d. Follow the common verification workflow.
+
+### Common verification workflow
+
+a. From the inspected changes, generate a small set of strong candidate issues. For each candidate, note category, `file:line`, and one-sentence hypothesis.
+b. Prefer fewer, stronger candidates; merge duplicate candidates.
+c. Verify each candidate directly in the current session using the available read/search/diff tools.
+d. During verification, read full files and relevant context, try to disprove the hypothesis, and keep only issues introduced or worsened by the current changes.
+e. Report only important confirmed findings with concrete evidence.
 
 ## Rules
 

@@ -14,7 +14,7 @@ The extension SHALL register a tool named `question` via `pi.registerTool()`. Th
 - `options` (required, array of objects): Each option SHALL have:
   - `label` (string, required): Display label for the option.
   - `description` (string, optional): Description shown below the label.
-- `recommended` (required, string): Label of the option the agent recommends. If the value does not match any option's label, it SHALL be silently ignored.
+    The first option in the array SHALL be treated as the agent's recommendation.
 
 In non-interactive modes (when `ctx.hasUI` is false), the tool SHALL return an error message.
 
@@ -32,19 +32,14 @@ In non-interactive modes (when `ctx.hasUI` is false), the tool SHALL return an e
 
 The tool SHALL display all options from the agent plus an automatically appended "Other" option at the end. The "Other" option SHALL have `isOther: true`.
 
-If the agent provided a `recommended` label matching an option's label, that option SHALL be visually marked as recommended and displayed first in the list.
+The first option in the agent's `options` array SHALL be visually marked as recommended. The agent MUST ensure the recommended option is first.
 
 The agent SHALL NOT include an "Other"/"Type something." option in their `options` array. The extension always appends it automatically.
 
-#### Scenario: Recommended option is highlighted and first
+#### Scenario: First option is visually marked as recommended
 
-- **WHEN** the agent calls with `recommended: "Next.js"` and options includes `{ label: "Next.js" }`
+- **WHEN** the agent calls with `options` where the first item is `{ label: "Next.js" }`
 - **THEN** the "Next.js" option SHALL be shown first in the list with a visual indicator marking it as recommended.
-
-#### Scenario: Non-matching recommended label is ignored
-
-- **WHEN** the agent calls with `recommended: "NonExistent"` and no option has that label
-- **THEN** no option SHALL be marked as recommended, and the original order is preserved.
 
 #### Scenario: Other is always appended last
 
@@ -95,7 +90,7 @@ Normal selection:
 ```typescript
 {
   content: [{ type: "text", text: "User selected: <label>" }],
-  details: { question, options, recommended: "<recLabel>", answer: "<label>", wasCustom: false }
+  details: { question, options, answer: "<label>", wasCustom: false }
 }
 ```
 
@@ -104,7 +99,7 @@ Normal selection with comment:
 ```typescript
 {
   content: [{ type: "text", text: "User selected: <label>\nComment: <comment>" }],
-  details: { question, options, recommended: "<recLabel>", answer: "<label>", comment: "<comment>", wasCustom: false }
+  details: { question, options, answer: "<label>", comment: "<comment>", wasCustom: false }
 }
 ```
 
@@ -113,7 +108,7 @@ Other (custom answer):
 ```typescript
 {
   content: [{ type: "text", text: "User wrote: <text>" }],
-  details: { question, options, recommended: "<recLabel>", answer: "<text>", wasCustom: true }
+  details: { question, options, answer: "<text>", wasCustom: true }
 }
 ```
 
@@ -122,14 +117,14 @@ Cancelled:
 ```typescript
 {
   content: [{ type: "text", text: "User cancelled the selection" }],
-  details: { question, options, recommended: "<recLabel>", answer: null, cancelled: true }
+  details: { question, options, answer: null, cancelled: true }
 }
 ```
 
 #### Scenario: Result includes answer and metadata
 
 - **WHEN** the user selects "Next.js" via Enter
-- **THEN** the returned details SHALL contain `recommended`, `answer: "Next.js"`, `wasCustom: false`, and no `comment`.
+- **THEN** the returned details SHALL contain `answer: "Next.js"`, `wasCustom: false`, and no `comment`.
 
 #### Scenario: Comment is included in result
 
