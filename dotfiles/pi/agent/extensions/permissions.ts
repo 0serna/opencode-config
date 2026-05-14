@@ -31,39 +31,19 @@ const LOG_FILE = `${process.env.HOME}/.local/state/pi/permissions.log`;
 // Sensitive command rule sets
 // ---------------------------------------------------------------------------
 
-const SENSITIVE_GIT_RULES: Array<{
-  when: (candidate: string) => boolean;
-}> = [
-  { when: (c) => /\bgit\s+push\b/i.test(c) && /--delete\b/i.test(c) },
-  {
-    when: (c) =>
-      /\bgit\s+push\b/i.test(c) && /--force(?:-with-lease)?\b|-f\b/i.test(c),
-  },
-  { when: (c) => /\bgit\s+push\b/i.test(c) },
-  { when: (c) => /\bgit\s+reset\b/i.test(c) && /--hard\b/i.test(c) },
-  {
-    when: (c) =>
-      /\bgit\s+clean\b/i.test(c) &&
-      /(?:(?:^|\s)-[^\s]*f\b)|(?:--force\b)/i.test(c),
-  },
-  { when: (c) => /\bgit\s+rebase\b/i.test(c) },
-  { when: (c) => /\bgit\s+commit\b/i.test(c) && /--amend\b/i.test(c) },
-  {
-    when: (c) => /\bgit\s+checkout\b/i.test(c) && /(?:^|\s)-[^\s]*f\b/i.test(c),
-  },
-  {
-    when: (c) =>
-      /\bgit\s+switch\b/i.test(c) && /(?:^|\s)--discard-changes\b/i.test(c),
-  },
-  {
-    when: (c) =>
-      /\bgit\s+branch\b/i.test(c) &&
-      /(?:(?:^|\s)-[^\s]*D\b)|(?:(?:^|\s)--delete\b)/i.test(c),
-  },
-  {
-    when: (c) =>
-      /\bgit\s+tag\b/i.test(c) && /(?:^|\s)-d\b|(?:^|\s)--delete\b/i.test(c),
-  },
+/** [command-regex, required-flag-regex | null] — null means any invocation. */
+const SENSITIVE_GIT_RULES: Array<[RegExp | null, RegExp]> = [
+  [/--delete\b/i, /\bgit\s+push\b/i],
+  [/--force(?:-with-lease)?\b|-f\b/i, /\bgit\s+push\b/i],
+  [null, /\bgit\s+push\b/i],
+  [/--hard\b/i, /\bgit\s+reset\b/i],
+  [/(?:(?:^|\s)-[^\s]*f\b)|(?:--force\b)/i, /\bgit\s+clean\b/i],
+  [null, /\bgit\s+rebase\b/i],
+  [/--amend\b/i, /\bgit\s+commit\b/i],
+  [/(?:^|\s)-[^\s]*f\b/i, /\bgit\s+checkout\b/i],
+  [/(?:^|\s)--discard-changes\b/i, /\bgit\s+switch\b/i],
+  [/(?:(?:^|\s)-[^\s]*D\b)|(?:(?:^|\s)--delete\b)/i, /\bgit\s+branch\b/i],
+  [/(?:^|\s)-d\b|(?:^|\s)--delete\b/i, /\bgit\s+tag\b/i],
 ];
 
 const SENSITIVE_GH_PATTERNS: RegExp[] = [
@@ -118,11 +98,87 @@ function normalizeCommand(command: string): string {
   return command.trim().replace(/\s+/g, " ");
 }
 
+const TWO_CHAR_DELIMITERS = new Set(["&&", "||"]);
+const ONE_CHAR_DELIMITERS = new Set([";", "\n", "&"]);
+
+/** Return the length (0, 1, or 2) of the command delimiter at {@link index}. */
+function commandDelimiterLength(command: string, index: number): 0 | 1 | 2 {
+  if (TWO_CHAR_DELIMITERS.has(command.slice(index, index + 2))) return 2;
+  if (ONE_CHAR_DELIMITERS.has(command[index])) return 1;
+  return 0;
+}
+
+/**
+ * Inside a quoted string, return the next index to advance to.
+ * For double quotes, backslash escapes the following character.
+ */
+function nextQuotedIndex(
+  command: string,
+  index: number,
+  quote: "'" | '"',
+): number {
+  if (quote === '"' && command[index] === "\\") return index + 2;
+  return index + 1;
+}
+
+/** Return the index of the closing quote (or end of string if unterminated). */
+function scanQuotedString(
+  command: string,
+  start: number,
+  quote: "'" | '"',
+): number {
+  let i = start;
+  while (i < command.length) {
+    if (command[i] === quote) return i;
+    i = nextQuotedIndex(command, i, quote);
+  }
+  return i;
+}
+
+/**
+ * If {@link index} points to a single or double quote, return the full
+ * quoted text including quotes and the end index.
+ */
+function readQuoted(
+  command: string,
+  index: number,
+): { end: number; text: string } | null {
+  const quote = command[index];
+  if (quote !== "'" && quote !== '"') return null;
+  const end = scanQuotedString(command, index + 1, quote);
+  return { end, text: command.slice(index, end + 1) };
+}
+
+function pushSegment(segments: string[], buf: string): void {
+  const trimmed = buf.trim();
+  if (trimmed.length > 0) segments.push(trimmed);
+}
+
 function splitCommandSegments(command: string): string[] {
-  return command
-    .split(/(?:&&|\|\||;|\n|&(?!&))/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  const segments: string[] = [];
+  let current = "";
+
+  for (let i = 0; i < command.length; i++) {
+    const quoted = readQuoted(command, i);
+    if (quoted != null) {
+      current += quoted.text;
+      i = quoted.end;
+      continue;
+    }
+
+    const delimLen = commandDelimiterLength(command, i);
+    if (delimLen > 0) {
+      pushSegment(segments, current);
+      current = "";
+      i += delimLen - 1; // for-loop i++ covers the rest
+      continue;
+    }
+
+    current += command[i];
+  }
+
+  pushSegment(segments, current);
+  return segments;
 }
 
 const STRIP_RE =
@@ -158,7 +214,10 @@ function extractShellWrappedCommand(segment: string): string | null {
 function isSensitiveGitSegment(segment: string): boolean {
   const candidate = stripLeadingWrappers(segment);
   if (!/^git\b/i.test(candidate)) return false;
-  return SENSITIVE_GIT_RULES.some((r) => r.when(candidate));
+  return SENSITIVE_GIT_RULES.some(
+    ([flag, cmd]) =>
+      cmd.test(candidate) && (flag == null || flag.test(candidate)),
+  );
 }
 
 function checkGhMethod(candidate: string): boolean {
@@ -183,7 +242,11 @@ function isSensitiveGhSegment(segment: string): boolean {
 }
 
 function isSensitiveSystemSegment(segment: string): boolean {
-  const candidate = stripLeadingWrappers(segment);
+  let candidate = stripLeadingWrappers(segment);
+  // Strip git -m/--message values (treated as plain text by git) so that
+  // words like "sudo" or "dd" in commit messages don't cause false positives.
+  // Do NOT strip -c values (config overrides), which git can execute as code.
+  candidate = candidate.replace(/(?:^|\s)(?:-m|--message)\s+(['"]).*?\1/gi, "");
   return SENSITIVE_SYSTEM_PATTERNS.some((p) => p.test(candidate));
 }
 
@@ -195,11 +258,18 @@ function checkWrappedOrSystem(segment: string): boolean {
   return isSensitiveSystemSegment(segment);
 }
 
+function maybeMatch(ok: boolean, segment: string): SensitiveMatch | null {
+  return ok ? { segment } : null;
+}
+
 function checkSegment(segment: string): SensitiveMatch | null {
+  // Skip fragments that clearly aren't commands
+  if (!/^[a-zA-Z./]/i.test(segment)) return null;
   if (isSensitiveGitSegment(segment)) return { segment };
-  if (isSensitiveGhSegment(segment)) return { segment };
-  if (checkWrappedOrSystem(segment)) return { segment };
-  return null;
+  return maybeMatch(
+    isSensitiveGhSegment(segment) || checkWrappedOrSystem(segment),
+    segment,
+  );
 }
 
 function findSensitiveMatch(command: string): SensitiveMatch | null {
