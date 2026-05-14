@@ -3,6 +3,7 @@
   "app.session.new": "ctrl+n",
   "tui.editor.undo": "ctrl+z",
   "app.session.resume": "ctrl+l",
+  "app.clipboard.pasteImage": "alt+v",
   "app.suspend": "",
   "app.model.select": ""
 }
