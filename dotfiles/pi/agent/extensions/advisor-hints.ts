@@ -2,8 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { dirname } from "path";
+import { log } from "./shared/logger.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -14,28 +13,6 @@ const TOOL_CALL_THRESHOLD = 10;
 
 /** Tools that count toward the threshold. */
 const COUNTED_TOOLS = new Set(["bash", "read", "edit", "write"]);
-
-// ---------------------------------------------------------------------------
-// Logging
-// ---------------------------------------------------------------------------
-
-const LOG_FILE = `${process.env.HOME}/.local/state/pi/advisor-hints.log`;
-
-const MAX_LOG_LINES = 2000;
-
-function logEvent(eventName: string, details: Record<string, unknown>): void {
-  const line = `${new Date().toISOString()} ${eventName} ${JSON.stringify(details)}\n`;
-  try {
-    appendFileSync(LOG_FILE, line);
-    const content = readFileSync(LOG_FILE, "utf-8");
-    const lines = content.split("\n");
-    if (lines.length > MAX_LOG_LINES) {
-      writeFileSync(LOG_FILE, lines.slice(-MAX_LOG_LINES).join("\n"));
-    }
-  } catch {
-    // Logging must never break the extension.
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Hint texts
@@ -102,7 +79,7 @@ function injectTurnHint(pi: ExtensionAPI, ctx: ExtensionContext): void {
     { customType: "advisor-hint", content: hintText, display: false },
     { deliverAs: "steer", triggerTurn: true },
   );
-  logEvent("hint", { sessionId, toolCalls });
+  log("advisor-hints", "hint", { sessionId, toolCalls });
   while (nextHintAt <= toolCalls) nextHintAt += TOOL_CALL_THRESHOLD;
 }
 
@@ -111,12 +88,6 @@ function injectTurnHint(pi: ExtensionAPI, ctx: ExtensionContext): void {
 // ---------------------------------------------------------------------------
 
 export default function (pi: ExtensionAPI) {
-  // One-time setup: ensure log directory exists.
-  try {
-    mkdirSync(dirname(LOG_FILE), { recursive: true });
-  } catch {
-    // Best-effort; logging handles errors silently.
-  }
   pi.on("session_start", async (event, ctx) => {
     resetAllState();
     const sessionFile = ctx.sessionManager.getSessionFile();
@@ -149,7 +120,7 @@ export default function (pi: ExtensionAPI) {
 
     if (event.toolName === "advisor") {
       advisorCalledThisTurn = true;
-      logEvent("advisor", { sessionId, toolCalls });
+      log("advisor-hints", "advisor", { sessionId, toolCalls });
       resetHintProgress();
     }
   });

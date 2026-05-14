@@ -1,8 +1,9 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { appendFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { log } from "./shared/logger.js";
 
 type OpenAIOAuthEntry = {
   type?: string;
@@ -57,7 +58,6 @@ const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
 const REQUEST_TIMEOUT_MS = 5000;
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
 const STATUS_KEY = "codex-quota";
-const LOG_FILE = "/tmp/pi-codex-quota.log";
 const CACHE_FILE = "/tmp/pi-codex-quota-cache.json";
 const OPENAI_AUTH_SOURCE_KEYS = [
   "openai",
@@ -75,21 +75,8 @@ let lastCtx: ExtensionContext | null = null;
 let poller: ReturnType<typeof setInterval> | null = null;
 
 // ---------------------------------------------------------------------------
-// Logging & helpers
+// Helpers
 // ---------------------------------------------------------------------------
-
-function logEvent(eventName: string, details: Record<string, unknown>): void {
-  const line = [
-    new Date().toISOString(),
-    eventName,
-    JSON.stringify(details),
-  ].join(" ");
-  try {
-    appendFileSync(LOG_FILE, `${line}\n`);
-  } catch {
-    return;
-  }
-}
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -191,18 +178,18 @@ async function loadCodexAuth(): Promise<{
 } | null> {
   const authPath = await findCodexAuthPath();
   if (!authPath) {
-    logEvent("auth_missing", {});
+    log("codex-quota", "auth_missing", {});
     return null;
   }
   const auth = JSON.parse(await readFile(authPath, "utf8")) as CodexAuthFile;
   const resolvedAuth = getOpenAIAuthEntry(auth);
-  logEvent("auth_loaded", {
+  log("codex-quota", "auth_loaded", {
     authPath,
     keys: Object.keys(auth),
     sourceKey: resolvedAuth?.sourceKey,
   });
   if (!resolvedAuth) {
-    logEvent("auth_unusable", { authPath });
+    log("codex-quota", "auth_unusable", { authPath });
     return null;
   }
   return { resolvedAuth };
@@ -231,7 +218,7 @@ async function callCodexUsageApi(resolvedAuth: {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) {
-    logEvent("fetch_failed", { status: response.status });
+    log("codex-quota", "fetch_failed", { status: response.status });
     return null;
   }
   return (await response.json()) as CodexUsageResponse;
@@ -366,7 +353,7 @@ async function fetchCodexQuotaStatus(): Promise<CodexQuotaStatus | null> {
   const usage = await callCodexUsageApi(resolvedAuth);
   if (!usage) return null;
   const status = buildStatusFromUsage(usage);
-  logEvent("fetch_succeeded", {
+  log("codex-quota", "fetch_succeeded", {
     sourceKey: resolvedAuth.sourceKey,
     has5h: status.remaining5h != null,
     has7d: status.remaining7d != null,
@@ -392,7 +379,7 @@ function setStatusSafely(
   try {
     ctx.ui.setStatus(STATUS_KEY, statusText);
   } catch (error) {
-    logEvent("status_publish_error", {
+    log("codex-quota", "status_publish_error", {
       reason,
       message: getErrorMessage(error),
     });
@@ -401,11 +388,11 @@ function setStatusSafely(
 
 function publishStatus(ctx: ExtensionContext, reason: string): void {
   if (!lastStatus) {
-    logEvent("status_skipped", { reason });
+    log("codex-quota", "status_skipped", { reason });
     return;
   }
   const statusText = getStatusText(ctx);
-  logEvent("status_published", { reason, status: statusText });
+  log("codex-quota", "status_published", { reason, status: statusText });
   setStatusSafely(ctx, reason, statusText);
 }
 
@@ -427,10 +414,10 @@ function applyStatus(status: CodexQuotaStatus | null): void {
 async function refreshStatus(reason: string): Promise<void> {
   try {
     const status = await fetchCodexQuotaStatus();
-    logEvent("status_resolved", { reason, status });
+    log("codex-quota", "status_resolved", { reason, status });
     applyStatus(status);
   } catch (error) {
-    logEvent("status_error", {
+    log("codex-quota", "status_error", {
       reason,
       message: getErrorMessage(error),
     });
@@ -451,7 +438,7 @@ function ensurePoller(): void {
 
 function handleSessionStart(_event: unknown, ctx: ExtensionContext): void {
   lastCtx = ctx;
-  logEvent("extension_loaded", {
+  log("codex-quota", "extension_loaded", {
     cwd: ctx.cwd,
     model: ctx.model?.id ?? null,
   });

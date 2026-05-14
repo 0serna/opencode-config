@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change improve-web-tools-logging. Update Purpose after archive.
+Diagnostic logging for the web-tools extension (web_search, web_fetch), recording Exa API calls and HTTP fallback outcomes in structured JSON format via the shared logger.
 
 ## Requirements
 
@@ -36,12 +36,12 @@ Each log entry SHALL follow a consistent format to support automated parsing (gr
 #### Scenario: Timestamp prefix
 
 - **WHEN** any event is logged
-- **THEN** the entry SHALL start with an ISO 8601 timestamp followed by a space, then the event type and fields
+- **THEN** the entry SHALL start with an ISO 8601 timestamp followed by a space, then the source, event, and fields
 
-#### Scenario: Machine-readable fields
+#### Scenario: JSON data
 
 - **WHEN** an event includes additional data (URL, status, count, etc.)
-- **THEN** the data SHALL be appended as `key="value"` or `key=value` pairs after the event description
+- **THEN** the data SHALL be encoded as a JSON object appended after the event name
 
 ### Requirement: Success and failure logging for Exa Search
 

@@ -1,11 +1,4 @@
-import {
-  appendFileSync,
-  mkdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { dirname } from "node:path";
+import { log } from "./shared/logger.js";
 
 import {
   isToolCallEventType,
@@ -37,7 +30,6 @@ interface CmdInfo {
 }
 
 const sessionApprovals = new Set<string>();
-const LOG_FILE = `${process.env.HOME}/.local/state/pi/permissions.log`;
 
 // ---------------------------------------------------------------------------
 // Sensitive command rule sets
@@ -76,31 +68,6 @@ const SENSITIVE_SYSTEM_PATTERNS: RegExp[] = [
   /\b(?:curl|wget)\b.*\|\s*(?:bash|sh|zsh|fish)\b/i,
   /\bsudo\b/i,
 ];
-
-// ---------------------------------------------------------------------------
-// Logging
-// ---------------------------------------------------------------------------
-
-const MAX_LOG_BYTES = 160_000;
-const MAX_LOG_LINES = 2000;
-
-function log(msg: string): void {
-  try {
-    mkdirSync(dirname(LOG_FILE), { recursive: true });
-    const line = `${new Date().toISOString()} ${msg}\n`;
-    appendFileSync(LOG_FILE, line);
-    const currentSize = statSync(LOG_FILE).size;
-    if (currentSize > MAX_LOG_BYTES) {
-      const content = readFileSync(LOG_FILE, "utf-8");
-      const allLines = content.split("\n");
-      if (allLines.length > MAX_LOG_LINES) {
-        writeFileSync(LOG_FILE, allLines.slice(-MAX_LOG_LINES).join("\n"));
-      }
-    }
-  } catch {
-    // Logging must never break command handling.
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Command parsing helpers
@@ -352,7 +319,7 @@ async function promptAndHandleChoice(
   approvalKey: string,
   scope: string,
 ): Promise<{ block: true; reason: string } | undefined> {
-  log(`prompt_shown cwd="${ctx.cwd}" scope="${scope}" command="${command}"`);
+  log("permissions", "prompt_shown", { cwd: ctx.cwd, scope, command });
 
   const choice = await ctx.ui.custom<ChoiceResult>((tui, theme, _kb, done) => {
     const state = { optionIndex: 0 };
@@ -443,21 +410,26 @@ async function promptAndHandleChoice(
     }
   });
 
-  log(
-    `user_choice cwd="${ctx.cwd}" scope="${scope}" choice="${choice.type}" command="${command}"`,
-  );
+  log("permissions", "user_choice", {
+    cwd: ctx.cwd,
+    scope,
+    choice: choice.type,
+    command,
+  });
 
   if (choice.type === "allow-session") {
     sessionApprovals.add(approvalKey);
-    log(
-      `session_approval_stored cwd="${ctx.cwd}" scope="${scope}" command="${command}"`,
-    );
+    log("permissions", "session_approval_stored", {
+      cwd: ctx.cwd,
+      scope,
+      command,
+    });
     return;
   }
   if (choice.type === "allow-once") {
     return;
   }
-  log(`blocked_by_user cwd="${ctx.cwd}" scope="${scope}" command="${command}"`);
+  log("permissions", "blocked_by_user", { cwd: ctx.cwd, scope, command });
   return { block: true, reason: "Blocked by user" };
 }
 
@@ -470,12 +442,10 @@ async function handleSensitiveCommand(
   const sensitiveMatch = findSensitiveMatch(command);
   if (sensitiveMatch == null) return;
 
-  log(
-    `sensitive_detected cwd="${ctx.cwd}" scope="${scope}" command="${command}"`,
-  );
+  log("permissions", "sensitive_detected", { cwd: ctx.cwd, scope, command });
 
   if (!ctx.hasUI) {
-    log(`blocked_no_ui cwd="${ctx.cwd}" scope="${scope}" command="${command}"`);
+    log("permissions", "blocked_no_ui", { cwd: ctx.cwd, scope, command });
     return {
       block: true,
       reason: "Sensitive command blocked (no UI for confirmation)",
@@ -502,9 +472,11 @@ async function handleToolCall(
   const { scope, approvalKey } = await buildCmdInfo(command, ctx.cwd, pi);
 
   if (isSessionApproved(approvalKey)) {
-    log(
-      `session_approval_reused cwd="${ctx.cwd}" scope="${scope}" command="${command}"`,
-    );
+    log("permissions", "session_approval_reused", {
+      cwd: ctx.cwd,
+      scope,
+      command,
+    });
     return;
   }
 

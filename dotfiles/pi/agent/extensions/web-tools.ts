@@ -1,38 +1,8 @@
 import { StringEnum } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
-import {
-  appendFileSync,
-  mkdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "fs";
-import { dirname } from "path";
 import { Type } from "typebox";
-
-// ===========================================================================
-// Logging
-// ===========================================================================
-
-const LOG_FILE = `${process.env.HOME}/.local/state/pi/web-tools.log`;
-
-function log(msg: string): void {
-  try {
-    mkdirSync(dirname(LOG_FILE), { recursive: true });
-    appendFileSync(LOG_FILE, `${new Date().toISOString()} ${msg}\n`);
-    const stat = statSync(LOG_FILE);
-    if (stat.size > 160_000) {
-      const content = readFileSync(LOG_FILE, "utf-8");
-      const lines = content.split("\n");
-      if (lines.length > 2000) {
-        writeFileSync(LOG_FILE, lines.slice(-2000).join("\n"));
-      }
-    }
-  } catch {
-    // ignore
-  }
-}
+import { log } from "./shared/logger.js";
 
 // ===========================================================================
 // Configuration
@@ -143,9 +113,11 @@ async function parseExaResponse<T>(
 ): Promise<T | null> {
   if (!response.ok) {
     const errorText = await response.text().catch(() => "unknown error");
-    log(
-      `${label} fail status=${response.status} body="${errorText.slice(0, 200)}"`,
-    );
+    log("web-tools", "exa_api_error", {
+      label,
+      status: response.status,
+      errorText: errorText.slice(0, 200),
+    });
     return null;
   }
   return (await response.json()) as T;
@@ -230,16 +202,19 @@ async function callExaContents(url: string): Promise<string | null> {
   const status = getFirstExaStatus(data);
 
   if (isExaStatusError(status)) {
-    log(
-      `exa_contents error url="${url}" status="${status.status}" tag="${status.tag}" httpCode=${status.httpStatusCode}`,
-    );
+    log("web-tools", "exa_contents_error", {
+      url,
+      status: status.status,
+      tag: status.tag,
+      httpCode: status.httpStatusCode,
+    });
     return text;
   }
 
   if (text) {
-    log(`exa_contents success url="${url}" status=success len=${text.length}`);
+    log("web-tools", "exa_contents_success", { url, len: text.length });
   } else {
-    log(`exa_contents insufficient url="${url}"`);
+    log("web-tools", "exa_contents_insufficient", { url });
   }
 
   return text;
@@ -450,7 +425,7 @@ async function executeWebSearch(
     domainFilter,
   }).catch((err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err);
-    log(`web_search fail query="${query.trim()}" error="${msg}"`);
+    log("web-tools", "web_search_fail", { query: query.trim(), error: msg });
     return null;
   });
   if (data == null) {
@@ -460,9 +435,10 @@ async function executeWebSearch(
       isError: true,
     };
   }
-  log(
-    `exa_search success query="${query.trim()}" results=${getResultCount(data)}`,
-  );
+  log("web-tools", "web_search_success", {
+    query: query.trim(),
+    results: getResultCount(data),
+  });
   return {
     content: [{ type: "text" as const, text: formatSearchResponse(data) }],
     details: { sourceCount: getResultCount(data) },
@@ -512,9 +488,12 @@ async function tryFetchContent(url: string): Promise<{
 }> {
   const exaContent = await callExaContents(url).catch(() => null);
   if (exaContent) return { content: exaContent, fallback: false };
-  log(`web_fetch fallback url="${url}"`);
+  log("web-tools", "web_fetch_fallback", { url });
   const httpContent = await extractViaHttp(url);
-  log(`web_fetch http_success url="${url}" bytes=${httpContent.length}`);
+  log("web-tools", "web_fetch_http_success", {
+    url,
+    bytes: httpContent.length,
+  });
   return { content: httpContent, fallback: true };
 }
 
@@ -542,7 +521,7 @@ async function executeWebFetch(
   const result = await tryFetchContent(url).catch((err: unknown) => {
     const message =
       err instanceof Error ? err.message : "Unknown error during fetch";
-    log(`web_fetch fail url="${url}" msg="${message}"`);
+    log("web-tools", "web_fetch_fail", { url, error: message });
     return null;
   });
   if (result == null) {
