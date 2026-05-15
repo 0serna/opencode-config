@@ -230,9 +230,9 @@ async function callCodexUsageApi(resolvedAuth: {
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return "<1m";
-  if (seconds < 120 * 60) return `${Math.floor(seconds / 60)}m`;
-  if (seconds < 24 * 60 * 60) return `${Math.floor(seconds / 3600)}h`;
-  return `${Math.floor(seconds / 86400)}d`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
+  return `${(seconds / 86400).toFixed(1)}d`;
 }
 
 // ---------------------------------------------------------------------------
@@ -268,7 +268,7 @@ const QUOTA_SEGMENTS: SegmentConfig[] = [
   {
     key: "remainingCredits",
     suffix: "",
-    label: "c",
+    label: "C",
   },
 ];
 

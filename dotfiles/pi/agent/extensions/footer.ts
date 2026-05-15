@@ -10,6 +10,33 @@ function formatCwd(cwd: string): string {
   return basename(cwd);
 }
 
+const EXCLUDED_EXTENSIONS = new Set(["context-usage", "codex-quota"]);
+
+type FooterTheme = { fg: (style: string, text: string) => string };
+
+function formatCwdWithBranch(
+  cwd: string,
+  branch: string | null,
+  theme: FooterTheme,
+): string {
+  return theme.fg("dim", branch ? `${cwd} (${branch})` : cwd);
+}
+
+function formatModelInfo(
+  modelId: string | null | undefined,
+  thinking: string,
+  theme: FooterTheme,
+): string {
+  return theme.fg("dim", modelId ? `${modelId} · ${thinking}` : `${thinking}`);
+}
+
+function getRightSide(
+  codexQuota: string | undefined,
+  fallback: string,
+): string {
+  return codexQuota ?? fallback;
+}
+
 export default function (pi: ExtensionAPI) {
   let requestRender: (() => void) | null = null;
 
@@ -36,26 +63,21 @@ export default function (pi: ExtensionAPI) {
             const modelId = ctx.model?.id;
             const separator = theme.fg("dim", " | ");
             const extStatuses = footerData.getExtensionStatuses();
-            const order = ["context-usage", "codex-quota"];
-            const ordered = order
-              .map((k) => extStatuses.get(k))
-              .filter(Boolean);
+            const codexQuota = extStatuses.get("codex-quota");
+            const ordered = [extStatuses.get("context-usage")].filter(Boolean);
             const remaining = Array.from(extStatuses.entries())
-              .filter(([k]) => !order.includes(k))
+              .filter(([k]) => !EXCLUDED_EXTENSIONS.has(k))
               .map(([, v]) => v);
 
             const sections = [
-              theme.fg("dim", branch ? `${cwd} (${branch})` : cwd),
-              theme.fg(
-                "dim",
-                modelId ? `${modelId} · ${thinking}` : `${thinking}`,
-              ),
+              formatCwdWithBranch(cwd, branch, theme),
+              formatModelInfo(modelId, thinking, theme),
               ...ordered,
               ...remaining,
             ];
 
             const left = sections.join(separator);
-            const right = theme.fg("dim", "·");
+            const right = getRightSide(codexQuota, theme.fg("dim", "·"));
             const pad = " ".repeat(
               Math.max(1, width - visibleWidth(left) - visibleWidth(right)),
             );
