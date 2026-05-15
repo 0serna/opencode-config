@@ -18,11 +18,8 @@ const COUNTED_TOOLS = new Set(["bash", "read", "edit", "write"]);
 // Hint texts
 // ---------------------------------------------------------------------------
 
-const HINT_TEXT_FIRST =
-  "If you're having difficulty, consider using the `advisor` tool now. Otherwise, if this work is important or worth validating before you respond to the user, consider using `advisor` before you finish. If the task is simple and doesn't need review, you can skip it.";
-
 const PASSIVE_GUIDELINE =
-  "If this work ends up being important or worth validating before you respond, consider using the `advisor` tool.";
+  "If you're having difficulty, use `advisor` to escalate. Before responding to the user, always consider whether the work is important enough to validate with `advisor` first.";
 
 function ordinalSuffix(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -31,10 +28,18 @@ function ordinalSuffix(n: number): string {
 }
 
 function buildTurnHintText(hintsSinceAdvisor: number): string {
-  if (hintsSinceAdvisor <= 1) return HINT_TEXT_FIRST;
+  if (hintsSinceAdvisor === 1) {
+    return "Before responding to the user, consider using `advisor` to validate this work.";
+  }
+  if (hintsSinceAdvisor === 2) {
+    return (
+      `This is the ${hintsSinceAdvisor}${ordinalSuffix(hintsSinceAdvisor)} suggestion. ` +
+      "This work should be validated with `advisor` before responding."
+    );
+  }
   return (
-    `This is the ${hintsSinceAdvisor}${ordinalSuffix(hintsSinceAdvisor)} advisor suggestion for this task. ` +
-    "If you're having difficulty, consider using the `advisor` tool now. Otherwise, if this work is important or worth validating before you respond, consider using `advisor` before you finish."
+    `This is the ${hintsSinceAdvisor}${ordinalSuffix(hintsSinceAdvisor)} suggestion. ` +
+    "Do not respond without using `advisor` to validate this work. MANDATORY."
   );
 }
 
@@ -71,13 +76,10 @@ function resetAllState(): void {
 function injectTurnHint(pi: ExtensionAPI, ctx: ExtensionContext): void {
   hintsSinceAdvisor++;
   const hintText = buildTurnHintText(hintsSinceAdvisor);
-  ctx.ui.notify(
-    "[advisor-hint] " + hintText,
-    hintsSinceAdvisor > 1 ? "warning" : "info",
-  );
+  ctx.ui.notify("[advisor-hint] " + hintText, "warning");
   pi.sendMessage(
     { customType: "advisor-hint", content: hintText, display: false },
-    { deliverAs: "steer", triggerTurn: true },
+    { deliverAs: "steer" },
   );
   log("advisor-hints", "hint", { sessionId, toolCalls });
   while (nextHintAt <= toolCalls) nextHintAt += TOOL_CALL_THRESHOLD;

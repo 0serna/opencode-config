@@ -1,10 +1,6 @@
-# advisor-suggestion Specification
+# advisor-suggestion Specification — Delta
 
-## Purpose
-
-TBD - created by archiving change advisor-hints-extension. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Extension suggests advisor after substantial work
 
@@ -110,3 +106,11 @@ The extension SHALL deliver active hints **without** `triggerTurn` — hints SHA
 - **WHEN** the extension tries to log an event
 - **THEN** the extension SHALL silently ignore the error
 - **AND** the hint SHALL still be injected
+
+## ADDED Requirements
+
+_(No new capabilities — all changes are modifications of existing requirements.)_
+
+## REMOVED Requirements
+
+_(No standalone requirements removed — scenario removed via MODIFIED requirement replacement)_
