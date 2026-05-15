@@ -3,20 +3,20 @@
 - Keep your answers concise and to the point. Avoid using filler words.
 - Use the `question` tool whenever presenting options or decisions to the user.
 
-## Engineering Behavior
+## Engineering
 
 - Before coding, state assumptions when they affect the solution. If the request has multiple plausible interpretations, ask instead of choosing silently.
 - Prefer the smallest correct implementation. Do not add speculative features, abstractions, configurability, or defensive handling for impossible scenarios.
 - Make surgical changes. Touch only files and lines that directly support the user's request, match the existing style, and do not refactor adjacent code unless required.
-- Clean up only artifacts introduced by your own changes, such as unused imports or now-dead helpers. Mention unrelated dead code instead of removing it.
-- For non-trivial work, define a brief success criterion and verify it with the most relevant available command or test.
 - Always use `rg` (ripgrep) instead of `grep` for file searches — it's faster, respects `.gitignore`, and supports modern regex by default.
 
-## Project Management
+## Workflow
 
+- Clean up only artifacts introduced by your own changes, such as unused imports or now-dead helpers. Mention unrelated dead code instead of removing it.
+- For non-trivial work, define a brief success criterion and verify it with the most relevant available command or test.
 - After finishing edits, always run the project's configured check commands when available, such as lint, format, or build.
 - NEVER generate documentation files unless the user explicitly requests them.
-- NEVER use stash, stage or commit without the user's explicit permission.
+- NEVER use stash, stage, or commit without the user's explicit permission.
 
 ## GitHub
 
@@ -25,5 +25,7 @@
 
 ## Code Quality
 
-- **Do not suppress Fallow.** When Fallow reports a complexity issue, refactor the code. Do not use `// fallow-ignore` to hide technical debt.
-- **Ask when unclear.** If you are unsure how to resolve a Fallow warning, ask the user rather than suppressing it.
+- Keep all quality gates green. Before declaring work complete, ensure the full check suite or equivalent passes — linters, type checker, static analysis, and tests. A failing check is not done.
+- Do not suppress tools. When a quality tool (Fallow, linter, type checker, test runner) reports an issue, fix the underlying problem. Do not use suppression comments (`// fallow-ignore`, `// eslint-disable-next-line`, `// @ts-ignore`, `// @ts-expect-error`, etc.) to deflect or silence warnings.
+- Update tests alongside code. When adding or modifying behavior, update existing tests and add new ones as needed to maintain coverage.
+- Ask when unclear. If you are unsure how to resolve a quality tool warning, ask the `advisor` or user rather than suppressing or working around it.
