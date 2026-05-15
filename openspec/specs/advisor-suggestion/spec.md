@@ -2,111 +2,66 @@
 
 ## Purpose
 
-TBD - created by archiving change advisor-hints-extension. Update Purpose after archive.
+The advisor-suggestion capability was replaced by the new `blockage-detection` and `keyword-followup` capabilities. This spec documents the removed requirements for migration reference.
 
 ## Requirements
 
 ### Requirement: Extension suggests advisor after substantial work
 
-When the agent has done substantial work, the extension SHALL suggest using `advisor`.
+The old advisor-suggestion extension SHALL be removed and replaced by `blockage-detection` and `keyword-followup`.
 
-The suggestion SHALL operate at two levels:
+**Reason**: Replaced by two new capabilities — `blockage-detection` (reacts to bash errors as real blockage signals) and `keyword-followup` (triggers validation after specific skill commands). The old system of passive guidelines and volume-based tool-call thresholds did not detect actual agent stuckness.
+**Migration**: Use the new `blockage-detection` and `keyword-followup` capabilities. The old `TOOL_CALL_THRESHOLD`, `ordinalSuffix`, and `PASSIVE_GUIDELINE` are no longer used. The `customType: "advisor-hint"` is replaced by `customType: "advisor-blockage"`.
 
-1. A passive guideline appended to the system prompt at the start of each user prompt
-2. Active steer messages injected via `pi.sendMessage` with `customType: "advisor-hint"` at `turn_end` whenever counted tool calls reach another multiple of `TOOL_CALL_THRESHOLD` and `advisor` was not called in that turn
+#### Scenario: Requirement is superseded
 
-The hint message SHALL use a custom message type rather than a user message, to avoid polluting the conversation history.
+- **WHEN** reviewing the change history
+- **THEN** this requirement SHALL be considered superseded by `blockage-detection` and `keyword-followup`
 
-The extension SHALL track the following turn-level state:
+### Requirement: Passive guideline covers difficulty and pre-response validation
 
-- Total calls to `bash`, `read`, `edit`, or `write` since the last `advisor` call (other tools are not counted)
-- The next tool-call threshold at which a `turn_end` hint should fire
-- Whether the `advisor` tool was called during the current turn
+The passive guideline system-prompt text SHALL be removed and replaced by active blockage detection.
 
-The extension SHALL gate `turn_end` hints on:
+**Reason**: Static system-prompt text is too generic. Replaced by active blockage detection.
+**Migration**: Remove the `before_agent_start` handler that appended the passive guideline.
 
-- The `advisor` tool was NOT called during the current turn
-- The counted tool total meets or exceeds the next threshold multiple of `TOOL_CALL_THRESHOLD`
+#### Scenario: Requirement is superseded
 
-The extension SHALL only count `bash`, `read`, `edit`, and `write` tool calls toward the threshold. Other tools (`web_search`, `web_fetch`, `question`, `advisor`, etc.) SHALL NOT increment the counter.
+- **WHEN** reviewing the change history
+- **THEN** this requirement SHALL be considered superseded by active blockage detection
 
-The extension SHALL reset the counted tool total and next threshold progression when `advisor` is used, so that work already reviewed via advisor does not immediately re-trigger a `turn_end` hint.
+### Requirement: Active hint is injected at turn_end after the first threshold is reached
 
-The extension SHALL NOT use cooldown or debounce logic. Hints are never suppressed based on timing of previous hints or advisor usage.
+The volume-based threshold system SHALL be removed and the `turn_end` hint logic SHALL no longer be used.
 
-All thresholds SHALL be defined as module-level constants.
+**Reason**: Volume-based thresholds don't detect actual stuckness. Replaced by error-rate-based blockage detection.
+**Migration**: Remove `turn_end` tool-call counting logic. Use the new sliding-window bash error detection instead.
 
-The extension SHALL deliver active hints **without** `triggerTurn` — hints SHALL be added to the conversation context without forcing an extra model turn.
+#### Scenario: Requirement is superseded
 
-#### Scenario: Tool counter resets at each new prompt
+- **WHEN** reviewing the change history
+- **THEN** this requirement SHALL be considered superseded by error-rate-based blockage detection
 
-- **WHEN** a new prompt begins processing (`agent_start`)
-- **THEN** the counted tool total SHALL be reset to `0`
-- **AND** the next hint threshold SHALL be reset to `TOOL_CALL_THRESHOLD`
+### Requirement: Active hint repeats at later threshold multiples with escalating wording
 
-#### Scenario: Passive guideline covers difficulty and pre-response validation
+The escalating hint wording SHALL be removed. The blockage steer SHALL be a fixed one-shot message per episode.
 
-- **WHEN** a user prompt begins processing
-- **THEN** the system prompt SHALL include a guideline stating that if the agent is having difficulty it should use `advisor` to escalate
-- **AND** the guideline SHALL also state that before responding to the user, the agent should consider whether the work is important enough to validate with `advisor` first
+**Reason**: Escalation removed by design — the new blockage steer is one-shot per episode.
+**Migration**: No replacement for escalation. The blockage steer is fixed, non-escalating.
 
-#### Scenario: Active hint is injected at turn_end after the first threshold is reached
+#### Scenario: Requirement is superseded
 
-- **WHEN** the agent completes a turn
-- **AND** counted tool calls since the last `advisor` use meet or exceed `TOOL_CALL_THRESHOLD`
-- **AND** the `advisor` tool was NOT called during that turn
-- **THEN** the extension SHALL inject a steer message via `pi.sendMessage`
-- **AND** the steer message SHALL NOT set `triggerTurn`
+- **WHEN** reviewing the change history
+- **THEN** this requirement SHALL be considered superseded by the one-shot blockage steer design
 
-#### Scenario: Active hint repeats at later threshold multiples with escalating wording
+### Requirement: TUI notification shown with warning severity
 
-- **WHEN** the agent continues working without using `advisor`
-- **AND** counted tool calls later reach another multiple of `TOOL_CALL_THRESHOLD`
-- **THEN** the extension SHALL inject another `turn_end` hint
-- **AND** the hint wording SHALL escalate based on how many hints have been injected since the last `advisor` call:
-  - **Level 1** (first hint): gentle reminder to consider using `advisor` before responding
-  - **Level 2** (second hint): reinforced statement that work should be validated
-  - **Level 3+** (third and subsequent hints): firm instruction using mandatory language
+The TUI notification SHALL be removed. Hints SHALL use `pi.sendMessage` with `display: true` instead.
 
-#### Scenario: Turn_end hint is suppressed when advisor was called this turn
+**Reason**: Hints are now session-visible only. TUI notifications removed by design.
+**Migration**: Remove `ctx.ui.notify` calls. Hints use `pi.sendMessage` with `display: true`.
 
-- **WHEN** the agent completes a turn
-- **AND** the `advisor` tool was called during that turn
-- **THEN** the extension SHALL NOT inject a steer message at `turn_end`
+#### Scenario: Requirement is superseded
 
-#### Scenario: TUI notification shown with warning severity
-
-- **WHEN** the extension injects a `turn_end` hint
-- **THEN** the extension SHALL display a notification via `ctx.ui.notify`
-- **AND** the notification severity SHALL be `warning` regardless of how many hints have been injected
-
-#### Scenario: Advisor usage is logged
-
-- **WHEN** the agent calls the `advisor` tool
-- **THEN** the extension SHALL log an `advisor` event to `~/.local/state/pi/advisor-hints.log`
-- **AND** the log entry SHALL include `sessionId` and `toolCalls` (before reset) in JSON format
-
-#### Scenario: Advisor usage resets threshold progression
-
-- **WHEN** the agent calls the `advisor` tool
-- **THEN** the counted tool total SHALL be reset to `0`
-- **AND** the next hint threshold SHALL be reset to `TOOL_CALL_THRESHOLD`
-
-#### Scenario: Hint delivery is logged
-
-- **WHEN** the extension injects a `turn_end` steer message
-- **THEN** the extension SHALL log a `hint` event to `~/.local/state/pi/advisor-hints.log`
-- **AND** the log entry SHALL include `sessionId` and `toolCalls` in JSON format
-
-#### Scenario: Log file rotation
-
-- **GIVEN** the log file exceeds 2000 lines
-- **WHEN** the extension appends a new event
-- **THEN** the extension SHALL truncate the file to the most recent 2000 lines
-
-#### Scenario: Logging never blocks hint delivery
-
-- **GIVEN** file system is unwritable (permissions, full disk, etc.)
-- **WHEN** the extension tries to log an event
-- **THEN** the extension SHALL silently ignore the error
-- **AND** the hint SHALL still be injected
+- **WHEN** reviewing the change history
+- **THEN** this requirement SHALL be considered superseded by session-visible messages

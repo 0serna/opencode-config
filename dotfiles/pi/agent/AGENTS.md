@@ -22,12 +22,6 @@
 - MUST prefer GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata.
 - If necessary, clone repositories to temporary directories `/tmp` to analyze them more efficiently.
 
-## OpenSpec
-
-- **Explore** (openspec-explore): Use `advisor` before declaring done or crystallizing findings.
-- **Propose** (openspec-propose): Use `advisor` after creating all artifacts to validate completeness and quality.
-- **Apply** (openspec-apply-change): Use `advisor` when encountering blockers or issues, and before declaring done to validate all tasks.
-
 ## Code Quality
 
 - **Do not suppress Fallow.** When Fallow reports a complexity issue, refactor the code. Do not use `// fallow-ignore` to hide technical debt.

@@ -60,7 +60,6 @@ const SENSITIVE_GH_PATTERNS: RegExp[] = [
 ];
 
 const SENSITIVE_SYSTEM_PATTERNS: RegExp[] = [
-  /rm\s+(?:-[^\s]*r[^\s]*f\b|--recursive\b)/i,
   /\bdd\b/i,
   /\b(?:mkfs\.\w+|fdisk|parted)\b/i,
   /\b(?:shutdown|reboot|poweroff|halt)\b/i,
@@ -68,6 +67,49 @@ const SENSITIVE_SYSTEM_PATTERNS: RegExp[] = [
   /\b(?:curl|wget)\b.*\|\s*(?:bash|sh|zsh|fish)\b/i,
   /\bsudo\b/i,
 ];
+
+// ---------------------------------------------------------------------------
+// Path-aware rm -rf sensitivity
+// ---------------------------------------------------------------------------
+
+/** Check whether an rm command has both -r and -f flags (any order). */
+function isRmRecursiveForce(segment: string): boolean {
+  const rest = segment.replace(/^rm\s+/i, "").trim();
+  if (!rest) return false;
+
+  const flags = rest.split(/\s+/).filter((a) => a.startsWith("-"));
+  const hasRecursive = flags.some((a) =>
+    a.startsWith("--") ? a === "--recursive" : a.slice(1).includes("r"),
+  );
+  const hasForce = flags.some((a) =>
+    a.startsWith("--") ? a === "--force" : a.slice(1).includes("f"),
+  );
+  return hasRecursive && hasForce;
+}
+
+/** Extract path arguments from an rm command (skipping flags). */
+function parseRmTargets(segment: string): string[] {
+  const rest = segment.replace(/^rm\s+/i, "").trim();
+  if (!rest) return [];
+
+  const parts = rest.split(/\s+/);
+  const dd = parts.indexOf("--");
+  if (dd !== -1) return parts.slice(dd + 1);
+
+  const start = parts.findIndex((p) => !p.startsWith("-"));
+  if (start === -1) return [];
+  return parts.slice(start);
+}
+
+/** Combined regex for dot-refs, wildcard, and absolute paths. */
+const SENSITIVE_RM_PATH_RE = /^(?:\.\.?|\*|\/)/;
+
+/** Return true if the rm target path should trigger a permission prompt. */
+function isRmTargetSensitive(target: string): boolean {
+  const clean = target.replace(/^(['"])(.*)\1$/, "$2");
+  if (SENSITIVE_RM_PATH_RE.test(clean)) return true;
+  return clean.replace(/\\/g, "/").split("/").includes(".git");
+}
 
 // ---------------------------------------------------------------------------
 // Command parsing helpers
@@ -226,7 +268,17 @@ function isSensitiveSystemSegment(segment: string): boolean {
   // words like "sudo" or "dd" in commit messages don't cause false positives.
   // Do NOT strip -c values (config overrides), which git can execute as code.
   candidate = candidate.replace(/(?:^|\s)(?:-m|--message)\s+(['"]).*?\1/gi, "");
-  return SENSITIVE_SYSTEM_PATTERNS.some((p) => p.test(candidate));
+
+  // Check standard destructive patterns (dd, mkfs, sudo, etc.)
+  if (SENSITIVE_SYSTEM_PATTERNS.some((p) => p.test(candidate))) return true;
+
+  // Path-aware rm -rf: only flag when target is a sensitive path
+  if (isRmRecursiveForce(candidate)) {
+    const targets = parseRmTargets(candidate);
+    return targets.some((t) => isRmTargetSensitive(t));
+  }
+
+  return false;
 }
 
 function checkWrappedOrSystem(segment: string): boolean {

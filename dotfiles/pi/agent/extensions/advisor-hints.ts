@@ -1,88 +1,108 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-} from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { log } from "./shared/logger.js";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Tool call count that triggers a hint at each turn_end multiple. */
-const TOOL_CALL_THRESHOLD = 10;
-
-/** Tools that count toward the threshold. */
-const COUNTED_TOOLS = new Set(["bash", "read", "edit", "write"]);
+const CONSECUTIVE_FAILURE_THRESHOLD = 2;
+const BLOCKAGE_MESSAGE =
+  "It looks like you're having trouble. Use `advisor` for help.";
+const KEYWORDS = ["opsx-propose", "opsx-apply"];
+const FOLLOWUP_MESSAGE = "Validate the work done so far with `advisor`";
 
 // ---------------------------------------------------------------------------
-// Hint texts
+// Normalization helpers
 // ---------------------------------------------------------------------------
 
-const PASSIVE_GUIDELINE =
-  "If you're having difficulty, use `advisor` to escalate. Before responding to the user, always consider whether the work is important enough to validate with `advisor` first.";
+/** Combined regex for short flags, redirections, and dot-references. */
+const IGNORED_TOKEN_RE = /^(?:-[a-zA-Z0-9]+|\d*[>&|<>]+|\.\.?)$/;
 
-function ordinalSuffix(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return s[(v - 20) % 10] ?? s[v] ?? s[0]!;
+/** Returns true for tokens that should be stripped from the command signature. */
+function isIgnoredToken(token: string): boolean {
+  if (token.includes("/")) return true;
+  return IGNORED_TOKEN_RE.test(token);
 }
 
-function buildTurnHintText(hintsSinceAdvisor: number): string {
-  if (hintsSinceAdvisor === 1) {
-    return "Before responding to the user, consider using `advisor` to validate this work.";
+/**
+ * Strip `--flag value` pairs (flags without `=`) from the token list.
+ * The paired value is consumed so it won't appear in the result.
+ */
+function skipFlagValues(tokens: string[]): string[] {
+  const result: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i] as string;
+    if (token.startsWith("--") && !token.includes("=")) {
+      i++;
+      continue;
+    }
+    result.push(token);
   }
-  if (hintsSinceAdvisor === 2) {
-    return (
-      `This is the ${hintsSinceAdvisor}${ordinalSuffix(hintsSinceAdvisor)} suggestion. ` +
-      "This work should be validated with `advisor` before responding."
-    );
-  }
-  return (
-    `This is the ${hintsSinceAdvisor}${ordinalSuffix(hintsSinceAdvisor)} suggestion. ` +
-    "Do not respond without using `advisor` to validate this work. MANDATORY."
-  );
+  return result;
+}
+
+function normalizeCommand(command: string): string {
+  const tokens = command
+    .split(/[|&;]{1,2}/)[0]
+    .trim()
+    .split(/\s+/);
+  return skipFlagValues(tokens)
+    .filter((t) => !isIgnoredToken(t))
+    .join(" ");
 }
 
 // ---------------------------------------------------------------------------
-// Module-level state (reset per session)
+// Module-level state (reset per episode)
 // ---------------------------------------------------------------------------
 
-let toolCalls = 0;
-let nextHintAt = TOOL_CALL_THRESHOLD;
-let advisorCalledThisTurn = false;
-let hintsSinceAdvisor = 0;
+let lastNormalizedCommand = "";
+let consecutiveFailures = 0;
+let blockageSteerSent = false;
+let keywordDetected = false;
 let sessionId = "";
 
 // ---------------------------------------------------------------------------
-// State helpers
+// Tool-result helpers
 // ---------------------------------------------------------------------------
 
-function resetHintProgress(): void {
-  toolCalls = 0;
-  nextHintAt = TOOL_CALL_THRESHOLD;
-  hintsSinceAdvisor = 0;
+function getExitCode(
+  details: { exitCode?: number } | undefined,
+  isError: boolean | undefined,
+): number {
+  if (typeof details?.exitCode === "number") return details.exitCode;
+  return isError ? 1 : 0;
 }
 
-function resetAllState(): void {
-  resetHintProgress();
-  advisorCalledThisTurn = false;
-  sessionId = "";
+function updateFailureState(normalized: string, exitCode: number): void {
+  if (exitCode !== 0) {
+    if (normalized !== "" && normalized === lastNormalizedCommand) {
+      consecutiveFailures++;
+    } else {
+      lastNormalizedCommand = normalized;
+      consecutiveFailures = 1;
+    }
+  } else {
+    lastNormalizedCommand = "";
+    consecutiveFailures = 0;
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Hint injection
-// ---------------------------------------------------------------------------
+function handleBashToolResult(event: {
+  details?: { exitCode?: number };
+  isError?: boolean;
+  input?: { command?: string };
+}): void {
+  const exitCode = getExitCode(event.details, event.isError);
+  const normalized = normalizeCommand(event.input?.command ?? "");
+  updateFailureState(normalized, exitCode);
+}
 
-function injectTurnHint(pi: ExtensionAPI, ctx: ExtensionContext): void {
-  hintsSinceAdvisor++;
-  const hintText = buildTurnHintText(hintsSinceAdvisor);
-  ctx.ui.notify("[advisor-hint] " + hintText, "warning");
-  pi.sendMessage(
-    { customType: "advisor-hint", content: hintText, display: false },
-    { deliverAs: "steer" },
-  );
-  log("advisor-hints", "hint", { sessionId, toolCalls });
-  while (nextHintAt <= toolCalls) nextHintAt += TOOL_CALL_THRESHOLD;
+function handleAdvisorToolResult(): void {
+  const hadBlockageSteer = blockageSteerSent;
+  lastNormalizedCommand = "";
+  consecutiveFailures = 0;
+  blockageSteerSent = false;
+  log("advisor-hints", "advisor", { sessionId, hadBlockageSteer });
 }
 
 // ---------------------------------------------------------------------------
@@ -90,8 +110,13 @@ function injectTurnHint(pi: ExtensionAPI, ctx: ExtensionContext): void {
 // ---------------------------------------------------------------------------
 
 export default function (pi: ExtensionAPI) {
-  pi.on("session_start", async (event, ctx) => {
-    resetAllState();
+  pi.on("session_start", async (_event, ctx) => {
+    lastNormalizedCommand = "";
+    consecutiveFailures = 0;
+    blockageSteerSent = false;
+    keywordDetected = false;
+    sessionId = "";
+
     const sessionFile = ctx.sessionManager.getSessionFile();
     const basename = (sessionFile ?? "").split("/").pop() ?? "";
     const name = basename.replace(/\.jsonl$/, "");
@@ -99,36 +124,63 @@ export default function (pi: ExtensionAPI) {
     sessionId = parts.length >= 2 ? parts.slice(1).join("_") : name;
   });
 
-  pi.on("before_agent_start", async (event) => {
-    return {
-      systemPrompt: event.systemPrompt
-        ? `${event.systemPrompt}\n\n${PASSIVE_GUIDELINE}`
-        : PASSIVE_GUIDELINE,
-    };
+  pi.on("input", async (event) => {
+    if (event.source === "extension") return;
+
+    // Reset for this input; only set if a keyword matches below
+    keywordDetected = false;
+
+    for (const kw of KEYWORDS) {
+      if (event.text.includes(kw)) {
+        keywordDetected = true;
+        log("advisor-hints", "keyword-match", { sessionId, keyword: kw });
+        break;
+      }
+    }
   });
 
   pi.on("agent_start", async () => {
-    resetHintProgress();
-  });
-
-  pi.on("turn_start", async () => {
-    advisorCalledThisTurn = false;
+    lastNormalizedCommand = "";
+    consecutiveFailures = 0;
+    blockageSteerSent = false;
   });
 
   pi.on("tool_result", async (event) => {
-    if (COUNTED_TOOLS.has(event.toolName)) {
-      toolCalls++;
+    if (event.toolName === "bash") {
+      handleBashToolResult(event);
     }
 
     if (event.toolName === "advisor") {
-      advisorCalledThisTurn = true;
-      log("advisor-hints", "advisor", { sessionId, toolCalls });
-      resetHintProgress();
+      handleAdvisorToolResult();
     }
   });
 
-  pi.on("turn_end", async (_event, ctx) => {
-    if (!advisorCalledThisTurn && toolCalls >= nextHintAt)
-      injectTurnHint(pi, ctx);
+  pi.on("turn_end", async () => {
+    if (blockageSteerSent) return;
+
+    if (consecutiveFailures >= CONSECUTIVE_FAILURE_THRESHOLD) {
+      pi.sendMessage(
+        {
+          customType: "advisor-blockage",
+          content: BLOCKAGE_MESSAGE,
+          display: true,
+        },
+        { deliverAs: "steer" },
+      );
+      blockageSteerSent = true;
+      log("advisor-hints", "blockage", {
+        sessionId,
+        command: lastNormalizedCommand,
+        failureCount: consecutiveFailures,
+      });
+    }
+  });
+
+  pi.on("agent_end", async () => {
+    if (keywordDetected) {
+      pi.sendUserMessage(FOLLOWUP_MESSAGE, { deliverAs: "followUp" });
+      log("advisor-hints", "followup-sent", { sessionId });
+      keywordDetected = false;
+    }
   });
 }

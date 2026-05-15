@@ -1,91 +1,79 @@
 ## Context
 
-The `advisor-hints` extension (`dotfiles/pi/agent/extensions/advisor-hints.ts`) currently injects hints suggesting `advisor` use at two levels:
+The `advisor-hints.ts` extension currently implements two hint mechanisms using the pi extension API:
 
-1. **Passive**: A guideline appended to the system prompt at `before_agent_start`
-2. **Active**: A steer message injected at `turn_end` every 10 counted tool calls (bash/read/edit/write), delivered with `triggerTurn: true`
+1. A static passive guideline appended to the system prompt in `before_agent_start`
+2. Active turn-end hints triggered when counted tool calls (`bash`/`read`/`edit`/`write`) cross multiples of `TOOL_CALL_THRESHOLD` (10), with escalating wording
 
-Session analysis of a real 142-tool-call session showed:
+Both mechanisms are being removed and replaced by two new independent mechanisms that react to real signals rather than tool volume.
 
-- 11 hints fired
-- **Zero** autonomous advisor calls by the agent
-- Both advisor invocations were manually typed by the user
-- The agent accumulated up to 8 consecutive hints without calling advisor
-
-The root cause is the hint text itself: "If you're having difficulty... otherwise if important... you can skip it" — this conditional framing gives the model permission to skip every time. The agent never perceives difficulty and never considers the work "important enough" mid-task.
-
-The extension uses the shared logger at `./shared/logger.js` — no changes needed there.
+The pi extension API provides the following hooks used by this design: `session_start`, `before_agent_start`, `agent_start`, `agent_end`, `turn_start`, `turn_end`, `tool_result`. Messages are sent via `pi.sendMessage()` (custom steer messages) and `pi.sendUserMessage()` (user messages that trigger turns). Diagnostic logging uses the shared logger at `./shared/logger.js`.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Make the agent call `advisor` autonomously when hints accumulate
-- Remove conditional escape clauses from active hints
-- Escalate progressively across 3 levels of firmness
-- Save tokens by removing `triggerTurn: true`
-- Keep all existing mechanics (threshold, tool counting, reset logic, logging)
+- Detect when the agent is stuck (repeated bash failures) and inject a one-time steer message per episode
+- Detect specific keywords (`opsx-propose`, `opsx-apply`) in the user's prompt and append a follow-up user message at `agent_end`
+- Keep all hints visible in the session (`display: true`) — no separate TUI notifications
+- Remove the old passive guideline and volume-based threshold system entirely
+- Hardcode all configuration (keywords, thresholds) as module-level constants
 
 **Non-Goals:**
 
-- No changes to the shared logger
-- No changes to other extensions
-- No changes to threshold mechanics (still 10 tool calls)
-- No changes to tool counting logic (still bash/read/edit/write)
-- No limit on maximum hints (still unlimited)
+- Not building a generic config file or settings UI — configuration stays in the `.ts` file
+- Not adding cooldown, debounce, or rate-limiting logic
+- Not detecting keywords in assistant messages or tool results (only user input)
+- Not adding escalation or multi-level messaging for either mechanism
 
 ## Decisions
 
-### Decision 1: Passive guideline covers both difficulty and importance
+### Decision: Sliding window of 5 bash calls, threshold of 3 errors
 
-**Choice:** The system prompt guideline now includes both escalation paths:
+The blockage detection uses a fixed-size FIFO buffer of the last 5 bash tool results. If 3 or more have a non-zero exit code at `turn_end`, a blockage steer is sent.
 
-> "If you're having difficulty, use \`advisor\` to escalate. Before responding to the user, always consider whether the work is important enough to validate with \`advisor\` first."
+- **Alternative considered**: Counting total consecutive errors. Rejected because a single success among errors shouldn't fully reset the window.
+- **Alternative considered**: Looking at all tool types, not just bash. Rejected because non-bash errors (web_search, read) are expected operations, not blockage signals.
 
-**Rationale:** Removing the difficulty condition from the active hints means it needs a home elsewhere. The system prompt is the right place — it sets baseline expectations before any work begins. Including both difficulty and pre-response validation covers the two scenarios where advisor is useful without making the active hints conditional.
+### Decision: One steer per episode, reset on advisor or agent_start
 
-**Alternatives considered:**
+Once a blockage steer is sent for an episode, no further steers are sent until either the agent calls `advisor` (resetting the error buffer) or a new user prompt starts (`agent_start`).
 
-- Put difficulty back in active hints — rejected because that's exactly the conditional escape that failed
-- Omit difficulty entirely — rejected because difficulty-based escalation is still valid, just shouldn't be in the active hint that fires mid-work
+- **Rationale**: Repeated messages every turn_end would be noisy and counterproductive. The agent either unblocks itself or needs a single nudge.
 
-### Decision 2: Three levels of progressive firmness
+### Decision: Keywords detected in `input` event via `event.text`
 
-**Choice:** Active hints escalate across 3 distinct levels:
+The `input` event fires before skill/template expansion, so `event.text` contains the raw user input including skill command names like `opsx-propose` and `opsx-apply`. If these matched after expansion the keyword would be gone.
 
-| Level | When                    | Wording Strategy                        |
-| ----- | ----------------------- | --------------------------------------- |
-| 1     | 1st hint since advisor  | Gentle reminder                         |
-| 2     | 2nd hint since advisor  | Reinforced expectation                  |
-| 3+    | 3rd+ hint since advisor | Mandatory language with `MANDATORY` tag |
+Keywords are matched as plain substring checks against `event.text`. Messages with `event.source === "extension"` SHALL be skipped to avoid self-triggering on the extension's own follow-up.
 
-**Rationale:** A single text repeated 8 times gets ignored. Progressive escalation signals increasing urgency to the model. The word `MANDATORY` at level 3+ is an attention-capture token that breaks through the pattern of repeated similar messages.
+- **Alternative considered**: Using `before_agent_start` / `event.prompt`. Rejected because skill commands may be expanded before that point, removing the keyword from the prompt text.
 
-**Alternatives considered:**
+### Decision: Follow-up sent as `sendUserMessage` at `agent_end`
 
-- Same text every time — rejected, proven to be ignorable
-- 5 levels of escalation — rejected, excessive complexity for marginal gain
-- 2 levels — rejected, jump from "consider" to "MANDATORY" is too abrupt
+When a keyword is detected, at `agent_end` the extension calls `pi.sendUserMessage("validate the work done so far with `advisor`")`. This triggers a new turn immediately, asking the agent to validate.
 
-### Decision 3: Remove `triggerTurn: true`
+- **Alternative considered**: Using `pi.sendMessage` with `deliverAs: "followUp"` and `triggerTurn: true`. Rejected because `sendUserMessage` creates an actual user message visible in the session, which is the desired behavior — it looks like a user prompt.
+- **Alternative considered**: Using `deliverAs: "steer"` with `triggerTurn: true`. Rejected because steers are custom messages, not user messages, and the follow-up should appear as a natural user input.
 
-**Choice:** Steer messages delivered with `{ triggerTurn: false }` (default).
+### Decision: Session-visible messages, no TUI notifications
 
-**Rationale:** Each hint currently forces a model turn, consuming tokens and disrupting flow. Since the agent ignores them anyway, forcing turns is pure waste. Without `triggerTurn`, the hint sits in context and is seen on the next natural assistant turn.
+Both blockage steers and keyword follow-ups are visible in the session UI (the steer has `display: true`, the follow-up is a user message). No `ctx.ui.notify` calls are made.
 
-**Risk:** The model might not see the hint until several more tool calls later. This is acceptable — the threshold already fires every 10 tools, so the next hint will reference the updated count. The delay is bounded.
+- **Rationale**: The user can see hints directly in the conversation. Notifications are redundant noise.
 
-### Decision 4: All TUI notifications use `warning` severity
+### Decision: Hardcoded constants, no external config
 
-**Choice:** `ctx.ui.notify("[advisor-hint] " + hintText, "warning")` for all levels.
+Keywords, threshold values, window size, and the follow-up message are all defined as module-level `const` or `let` values at the top of the file.
 
-**Rationale:** Consistency. The first hint was `info` (less visible), but it's equally important as subsequent ones. The user should see all hints with the same visual weight. The TUI notification is the only channel the user sees (steer messages have `display: false`), and it was effective in the session — the user typed "advisor" after seeing notifications.
+- **Rationale**: The user explicitly chose this approach. Keeps the extension self-contained and avoids needing a config file reader.
 
 ## Risks / Trade-offs
 
-| Risk                                                                                                          | Mitigation                                                                                                                                                                                                                      |
-| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Model still ignores hints** despite stronger wording                                                        | The mandatory language (`MANDATORY`) and escalation are designed to counter this. If it persists, a stronger mechanism (e.g., blocking tool calls after N hints) could be added later, but that's a significant behavior change |
-| **"MANDATORY" causes confusion** — model might interpret it as a hard block rather than a strong suggestion   | The text still says "Do not respond... without validating" not "You must call advisor now" — it guides the response flow, not the tool calling                                                                                  |
-| **No triggerTurn delays hint visibility** — model may complete several more tool calls before seeing the hint | Acceptable. Hints still fire at consistent thresholds. The model will see the hint before its next text response, which is the critical moment                                                                                  |
-| **User gets annoyed by repeated warnings**                                                                    | All `warning` severity is more visible than before. User opted to keep notifications visible and in warning. If annoying, it can be dialed back                                                                                 |
+| Risk                                                                                                  | Mitigation                                                                                                                |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Keywords match unexpectedly in non-command context (e.g., someone types "how does opsx-propose work") | Acceptable — the follow-up is harmless ("validate with advisor") and the agent will handle it gracefully                  |
+| Blockage false positives when bash errors are expected (e.g., testing error handling)                 | The steer is a one-shot soft suggestion, not a block — the agent can ignore it                                            |
+| `sendUserMessage` at `agent_end` adds token cost per keyword match                                    | Keywords are specific skill commands, so matches are rare (only when running openspec workflows)                          |
+| Agent ignores blockage steer entirely                                                                 | Acceptable — no escalation is designed; advisor reset works if the agent does call it, else the next prompt resets        |
+| Both blockage steer and keyword follow-up fire in same session                                        | They're independent and non-conflicting: steer is delivered during turns, follow-up happens after agent_end in a new turn |
