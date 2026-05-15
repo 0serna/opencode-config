@@ -10,6 +10,7 @@
 - Make surgical changes. Touch only files and lines that directly support the user's request, match the existing style, and do not refactor adjacent code unless required.
 - Clean up only artifacts introduced by your own changes, such as unused imports or now-dead helpers. Mention unrelated dead code instead of removing it.
 - For non-trivial work, define a brief success criterion and verify it with the most relevant available command or test.
+- Always use `rg` (ripgrep) instead of `grep` for file searches — it's faster, respects `.gitignore`, and supports modern regex by default.
 
 ## Project Management
 

@@ -12,10 +12,6 @@ import {
   wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 
-type SensitiveMatch = {
-  segment: string;
-};
-
 type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
 
 type ChoiceResult =
@@ -32,285 +28,83 @@ interface CmdInfo {
 const sessionApprovals = new Set<string>();
 
 // ---------------------------------------------------------------------------
-// Sensitive command rule sets
+// Preprocessing
 // ---------------------------------------------------------------------------
 
-/** [command-regex, required-flag-regex | null] — null means any invocation. */
-const SENSITIVE_GIT_RULES: Array<[RegExp | null, RegExp]> = [
-  [/--delete\b/i, /\bgit\s+push\b/i],
-  [/--force(?:-with-lease)?\b|-f\b/i, /\bgit\s+push\b/i],
-  [null, /\bgit\s+push\b/i],
-  [/--hard\b/i, /\bgit\s+reset\b/i],
-  [/(?:(?:^|\s)-[^\s]*f\b)|(?:--force\b)/i, /\bgit\s+clean\b/i],
-  [null, /\bgit\s+rebase\b/i],
-  [/--amend\b/i, /\bgit\s+commit\b/i],
-  [/(?:^|\s)-[^\s]*f\b/i, /\bgit\s+checkout\b/i],
-  [/(?:^|\s)--discard-changes\b/i, /\bgit\s+switch\b/i],
-  [/(?:(?:^|\s)-[^\s]*D\b)|(?:(?:^|\s)--delete\b)/i, /\bgit\s+branch\b/i],
-  [/(?:^|\s)-d\b|(?:^|\s)--delete\b/i, /\bgit\s+tag\b/i],
-];
+/** Strip single-quoted and double-quoted strings to prevent false positives. */
+function preprocess(command: string): string {
+  return command.replace(/'[^']*'/g, "").replace(/"[^"]*"/g, "");
+}
 
-const SENSITIVE_GH_PATTERNS: RegExp[] = [
-  /\bgh\s+pr\s+(create|merge|close|reopen|edit|ready)\b/i,
-  /\bgh\s+issue\s+(create|edit|close|reopen|delete|transfer|pin|unpin|lock|unlock)\b/i,
-  /\bgh\s+repo\s+(create|delete|archive|unarchive|edit|rename|fork)\b/i,
-  /\bgh\s+release\s+(create|edit|delete|upload)\b/i,
-  /\bgh\s+workflow\s+(run|enable|disable)\b/i,
-  /\bgh\s+run\s+(cancel|delete|rerun)\b/i,
-];
+// ---------------------------------------------------------------------------
+// Sensitive patterns
+// ---------------------------------------------------------------------------
 
-const SENSITIVE_SYSTEM_PATTERNS: RegExp[] = [
-  /\bdd\b/i,
-  /\b(?:mkfs\.\w+|fdisk|parted)\b/i,
-  /\b(?:shutdown|reboot|poweroff|halt)\b/i,
-  /\b(?:chmod|chown)\s+(?:-[^\s]+\s+)?777\b/i,
-  /\b(?:curl|wget)\b.*\|\s*(?:bash|sh|zsh|fish)\b/i,
+/**
+ * Flat array of sensitive command patterns, ordered most-specific-first.
+ * Each pattern is tested against the preprocessed command string.
+ */
+const SENSITIVE_PATTERNS: RegExp[] = [
+  // git push with --delete flag
+  /\bgit\s+push\b.*--delete\b/i,
+  // git push with --force or -f
+  /\bgit\s+push\b.*(?:--force(?:-with-lease)?|\b-f\b)/i,
+  // any git push
+  /\bgit\s+push\b/i,
+  // git reset with --hard
+  /\bgit\s+reset\b.*--hard\b/i,
+  // git clean with -f or --force
+  /\bgit\s+clean\b.*(?:(?:^|\s)-[^\s]*f\b|--force\b)/i,
+  // any git rebase
+  /\bgit\s+rebase\b/i,
+  // git commit with --amend
+  /\bgit\s+commit\b.*--amend\b/i,
+  // git checkout with -f
+  /\bgit\s+checkout\b.*(?:(?:^|\s)-[^\s]*f\b)/i,
+  // git switch with --discard-changes
+  /\bgit\s+switch\b.*--discard-changes\b/i,
+  // git branch with -D or --delete
+  /\bgit\s+branch\b.*(?:(?:^|\s)-D\b|--delete\b)/i,
+  // git tag with -d or --delete
+  /\bgit\s+tag\b.*(?:(?:^|\s)-d\b|--delete\b)/i,
+  // gh subcommands
+  /\bgh\s+pr\s+(?:create|merge|close|reopen|edit|ready)\b/i,
+  /\bgh\s+issue\s+(?:create|edit|close|reopen|delete|transfer|pin|unpin|lock|unlock)\b/i,
+  /\bgh\s+repo\s+(?:create|delete|archive|unarchive|edit|rename|fork)\b/i,
+  /\bgh\s+release\s+(?:create|edit|delete|upload)\b/i,
+  /\bgh\s+workflow\s+(?:run|enable|disable)\b/i,
+  /\bgh\s+run\s+(?:cancel|delete|rerun)\b/i,
+  // gh api mutations (non-GET method or field/input flags)
+  /\bgh\s+api\b[\s\S]*?(?:\s(?:-f|-F|--field|--raw-field|--input)\b|(?:\s|^)(?:-X|--method)(?:\s+|=)(?!GET)[A-Za-z]+)/i,
+  // sudo
   /\bsudo\b/i,
+  // rm -rf targeting /
+  /\brm\s+(?=[^;|&]*(?:-[a-z]*r[a-z]*|--recursive))(?=[^;|&]*(?:-[a-z]*f[a-z]*|--force))(?:--?[a-zA-Z]+\s+)*(?:--\s+)?\/(?:\s|$|[;&|`])/i,
+  // dd
+  /\bdd\b/i,
+  // mkfs, fdisk, parted
+  /\b(?:mkfs\.\w+|fdisk|parted)\b/i,
+  // shutdown, reboot, poweroff, halt
+  /\b(?:shutdown|reboot|poweroff|halt)\b/i,
+  // chmod/chown 777
+  /\b(?:chmod|chown)\s+(?:-[^\s]+\s+)?777\b/i,
+  // curl|wget piped to shell
+  /\b(?:curl|wget)\b.*\|\s*(?:bash|sh|zsh|fish)\b/i,
+  // shell -c invocation
+  /\b(?:bash|sh|zsh|fish)\s+-c\s+/i,
 ];
-
-// ---------------------------------------------------------------------------
-// Path-aware rm -rf sensitivity
-// ---------------------------------------------------------------------------
-
-/** Check whether an rm command has both -r and -f flags (any order). */
-function isRmRecursiveForce(segment: string): boolean {
-  const rest = segment.replace(/^rm\s+/i, "").trim();
-  if (!rest) return false;
-
-  const flags = rest.split(/\s+/).filter((a) => a.startsWith("-"));
-  const hasRecursive = flags.some((a) =>
-    a.startsWith("--") ? a === "--recursive" : a.slice(1).includes("r"),
-  );
-  const hasForce = flags.some((a) =>
-    a.startsWith("--") ? a === "--force" : a.slice(1).includes("f"),
-  );
-  return hasRecursive && hasForce;
-}
-
-/** Extract path arguments from an rm command (skipping flags). */
-function parseRmTargets(segment: string): string[] {
-  const rest = segment.replace(/^rm\s+/i, "").trim();
-  if (!rest) return [];
-
-  const parts = rest.split(/\s+/);
-  const dd = parts.indexOf("--");
-  if (dd !== -1) return parts.slice(dd + 1);
-
-  const start = parts.findIndex((p) => !p.startsWith("-"));
-  if (start === -1) return [];
-  return parts.slice(start);
-}
-
-/** Combined regex for dot-refs, wildcard, and absolute paths. */
-const SENSITIVE_RM_PATH_RE = /^(?:\.\.?|\*|\/)/;
-
-/** Return true if the rm target path should trigger a permission prompt. */
-function isRmTargetSensitive(target: string): boolean {
-  const clean = target.replace(/^(['"])(.*)\1$/, "$2");
-  if (SENSITIVE_RM_PATH_RE.test(clean)) return true;
-  return clean.replace(/\\/g, "/").split("/").includes(".git");
-}
-
-// ---------------------------------------------------------------------------
-// Command parsing helpers
-// ---------------------------------------------------------------------------
-
-function normalizeCommand(command: string): string {
-  return command.trim().replace(/\s+/g, " ");
-}
-
-const TWO_CHAR_DELIMITERS = new Set(["&&", "||"]);
-const ONE_CHAR_DELIMITERS = new Set([";", "\n", "&"]);
-
-/** Return the length (0, 1, or 2) of the command delimiter at {@link index}. */
-function commandDelimiterLength(command: string, index: number): 0 | 1 | 2 {
-  if (TWO_CHAR_DELIMITERS.has(command.slice(index, index + 2))) return 2;
-  if (ONE_CHAR_DELIMITERS.has(command[index])) return 1;
-  return 0;
-}
-
-/**
- * Inside a quoted string, return the next index to advance to.
- * For double quotes, backslash escapes the following character.
- */
-function nextQuotedIndex(
-  command: string,
-  index: number,
-  quote: "'" | '"',
-): number {
-  if (quote === '"' && command[index] === "\\") return index + 2;
-  return index + 1;
-}
-
-/** Return the index of the closing quote (or end of string if unterminated). */
-function scanQuotedString(
-  command: string,
-  start: number,
-  quote: "'" | '"',
-): number {
-  let i = start;
-  while (i < command.length) {
-    if (command[i] === quote) return i;
-    i = nextQuotedIndex(command, i, quote);
-  }
-  return i;
-}
-
-/**
- * If {@link index} points to a single or double quote, return the full
- * quoted text including quotes and the end index.
- */
-function readQuoted(
-  command: string,
-  index: number,
-): { end: number; text: string } | null {
-  const quote = command[index];
-  if (quote !== "'" && quote !== '"') return null;
-  const end = scanQuotedString(command, index + 1, quote);
-  return { end, text: command.slice(index, end + 1) };
-}
-
-function pushSegment(segments: string[], buf: string): void {
-  const trimmed = buf.trim();
-  if (trimmed.length > 0) segments.push(trimmed);
-}
-
-function splitCommandSegments(command: string): string[] {
-  const segments: string[] = [];
-  let current = "";
-
-  for (let i = 0; i < command.length; i++) {
-    const quoted = readQuoted(command, i);
-    if (quoted != null) {
-      current += quoted.text;
-      i = quoted.end;
-      continue;
-    }
-
-    const delimLen = commandDelimiterLength(command, i);
-    if (delimLen > 0) {
-      pushSegment(segments, current);
-      current = "";
-      i += delimLen - 1; // for-loop i++ covers the rest
-      continue;
-    }
-
-    current += command[i];
-  }
-
-  pushSegment(segments, current);
-  return segments;
-}
-
-const STRIP_RE =
-  /^(?:env\s+(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)\s+)*|(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)\s+)+|(?:command|builtin|nice|nohup|time)\s+)/i;
-
-function stripLeadingWrappers(segment: string): string {
-  let current = segment.trim();
-  let m: RegExpExecArray | null;
-  while ((m = STRIP_RE.exec(current)) != null && m[0].length > 0) {
-    current = current.slice(m[0].length).trim();
-  }
-  return current;
-}
-
-function extractShellWrappedCommand(segment: string): string | null {
-  const PRIVILEGE_RE = /^(?:sudo|doas|pkexec)\s+/i;
-  let wrapped = stripLeadingWrappers(segment);
-  // Strip privilege-escalation prefixes before matching shell wrapper
-  let m: RegExpExecArray | null;
-  while ((m = PRIVILEGE_RE.exec(wrapped)) != null && m[0].length > 0) {
-    wrapped = wrapped.slice(m[0].length).trim();
-  }
-  const match = wrapped.match(
-    /^(?:bash|sh|zsh|fish)\s+(?:-[^\s]*c[^\s]*|-c)\s+(['"])([\s\S]*)\1$/i,
-  );
-  return match?.[2]?.trim() ?? null;
-}
 
 // ---------------------------------------------------------------------------
 // Sensitivity detection
 // ---------------------------------------------------------------------------
 
-function isSensitiveGitSegment(segment: string): boolean {
-  const candidate = stripLeadingWrappers(segment);
-  if (!/^git\b/i.test(candidate)) return false;
-  return SENSITIVE_GIT_RULES.some(
-    ([flag, cmd]) =>
-      cmd.test(candidate) && (flag == null || flag.test(candidate)),
-  );
-}
-
-function checkGhMethod(candidate: string): boolean {
-  const methodMatch = candidate.match(
-    /(?:\s|^)(?:-X|--method)(?:\s+|=)([A-Za-z]+)/i,
-  );
-  if (methodMatch == null) return false;
-  return methodMatch[1].toUpperCase() !== "GET";
-}
-
-function checkGhApi(candidate: string): boolean {
-  if (!/\bgh\s+api\b/i.test(candidate)) return false;
-  if (checkGhMethod(candidate)) return true;
-  return /\s(?:-f|-F|--field|--raw-field|--input)\b/i.test(candidate);
-}
-
-function isSensitiveGhSegment(segment: string): boolean {
-  const candidate = stripLeadingWrappers(segment);
-  if (!/^gh\b/i.test(candidate)) return false;
-  if (SENSITIVE_GH_PATTERNS.some((p) => p.test(candidate))) return true;
-  return checkGhApi(candidate);
-}
-
-function isSensitiveSystemSegment(segment: string): boolean {
-  let candidate = stripLeadingWrappers(segment);
-  // Strip git -m/--message values (treated as plain text by git) so that
-  // words like "sudo" or "dd" in commit messages don't cause false positives.
-  // Do NOT strip -c values (config overrides), which git can execute as code.
-  candidate = candidate.replace(/(?:^|\s)(?:-m|--message)\s+(['"]).*?\1/gi, "");
-
-  // Check standard destructive patterns (dd, mkfs, sudo, etc.)
-  if (SENSITIVE_SYSTEM_PATTERNS.some((p) => p.test(candidate))) return true;
-
-  // Path-aware rm -rf: only flag when target is a sensitive path
-  if (isRmRecursiveForce(candidate)) {
-    const targets = parseRmTargets(candidate);
-    return targets.some((t) => isRmTargetSensitive(t));
-  }
-
-  return false;
-}
-
-function checkWrappedOrSystem(segment: string): boolean {
-  const wrappedCommand = extractShellWrappedCommand(segment);
-  if (wrappedCommand != null && findSensitiveMatch(wrappedCommand) != null) {
-    return true;
-  }
-  return isSensitiveSystemSegment(segment);
-}
-
-function maybeMatch(ok: boolean, segment: string): SensitiveMatch | null {
-  return ok ? { segment } : null;
-}
-
-function checkSegment(segment: string): SensitiveMatch | null {
-  // Skip fragments that clearly aren't commands
-  if (!/^[a-zA-Z./]/i.test(segment)) return null;
-  if (isSensitiveGitSegment(segment)) return { segment };
-  return maybeMatch(
-    isSensitiveGhSegment(segment) || checkWrappedOrSystem(segment),
-    segment,
-  );
-}
-
-function findSensitiveMatch(command: string): SensitiveMatch | null {
-  for (const segment of splitCommandSegments(command)) {
-    const match = checkSegment(segment);
-    if (match != null) {
-      return match;
-    }
-  }
-  return null;
+/**
+ * Preprocess the command then check against all sensitive patterns.
+ * Returns the first matching pattern, or null if none match.
+ */
+function findSensitiveMatch(command: string): RegExp | null {
+  const cleaned = preprocess(command);
+  return SENSITIVE_PATTERNS.find((p) => p.test(cleaned)) ?? null;
 }
 
 async function getApprovalScope(
@@ -345,6 +139,10 @@ function getCommandFromEvent(event: unknown): string | null {
   return command;
 }
 
+function normalizeCommand(command: string): string {
+  return command.trim().replace(/\s+/g, " ");
+}
+
 async function buildCmdInfo(
   command: string,
   cwd: string,
@@ -353,7 +151,7 @@ async function buildCmdInfo(
   const normalizedCommand = normalizeCommand(command);
   const scope = await getApprovalScope(cwd, pi);
   const approvalKey = `${scope}\u0000${normalizedCommand}`;
-  return { command, normalizedCommand, scope, approvalKey };
+  return { command, scope, approvalKey };
 }
 
 function isSessionApproved(approvalKey: string): boolean {
@@ -366,7 +164,6 @@ function isSessionApproved(approvalKey: string): boolean {
 
 async function promptAndHandleChoice(
   ctx: ExtensionContext,
-  _sensitiveMatch: SensitiveMatch,
   command: string,
   approvalKey: string,
   scope: string,
@@ -504,13 +301,7 @@ async function handleSensitiveCommand(
     };
   }
 
-  return promptAndHandleChoice(
-    ctx,
-    sensitiveMatch,
-    command,
-    approvalKey,
-    scope,
-  );
+  return promptAndHandleChoice(ctx, command, approvalKey, scope);
 }
 
 async function handleToolCall(

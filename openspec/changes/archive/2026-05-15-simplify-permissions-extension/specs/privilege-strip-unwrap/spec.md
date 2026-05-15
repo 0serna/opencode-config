@@ -1,10 +1,4 @@
-# privilege-strip-unwrap Specification
-
-## Purpose
-
-TBD - created by archiving change improve-permissions-extension. Update Purpose after archive.
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Detect shell -c command invocation
 
@@ -31,3 +25,11 @@ The detection SHALL be performed via regex matching against the preprocessed com
 
 - **WHEN** the agent executes `sudo bash -c "dd if=/dev/zero of=/dev/sdb bs=1M"`
 - **THEN** the extension SHALL block the command. The `bash -c` pattern matches the preprocessed command; `sudo` is an additional matching pattern but only one block reason is presented.
+
+## REMOVED Requirements
+
+### Requirement: Strip privilege-escalation prefixes in shell-wrapper detection
+
+**Reason**: The `extractShellWrappedCommand` function, `PRIVILEGE_RE` regex, and the privilege-stripping mechanism are removed. Shell `-c` invocations are now detected directly as sensitive patterns rather than unwrapped and recursively inspected.
+
+**Migration**: Any code relying on `extractShellWrappedCommand` or `PRIVILEGE_RE` should be updated to reference the flat sensitive pattern array instead. The behavioral change: `sudo bash -c "harmless command"` previously would not block if the inner command was harmless; now all `bash -c` invocations block.

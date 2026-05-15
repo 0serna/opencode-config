@@ -1,10 +1,4 @@
-# system-command-detection Specification
-
-## Purpose
-
-TBD - created by archiving change improve-permissions-extension. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Detect destructive system-level commands
 
@@ -85,11 +79,16 @@ The extension SHALL preprocess the command string before pattern matching by:
 - **WHEN** the agent executes `git commit -m "fix: remove sudo requirement from deploy script"`
 - **THEN** the extension SHALL NOT block the command, because quoted `-m` value content is stripped
 
-### Requirement: No approval-dialog timeout
+## REMOVED Requirements
 
-The approval dialog (`ctx.ui.select`) for sensitive commands MUST NOT have a configured timeout. The dialog SHALL remain open until the user makes a selection or dismisses it.
+### Requirement: Order system patterns specific-to-general
 
-#### Scenario: Dialog waits indefinitely
+**Reason**: The flat regex array has no separate system pattern ordering requirement. Patterns are ordered most-specific-first in the single array, but there is no dedicated system-pattern ordering concern.
 
-- **WHEN** the agent attempts a sensitive command and displays the approval dialog
-- **THEN** the dialog SHALL NOT auto-dismiss; it SHALL wait until the user responds
+**Migration**: No migration needed — the pattern array ordering is an implementation detail within the new flat structure.
+
+### Requirement: Insert system check as last in checkSegment
+
+**Reason**: The `checkSegment` function and the concept of separate git/gh/system category dispatch are removed. All patterns live in a single flat array, so there is no ordering relationship between categories.
+
+**Migration**: No migration needed.

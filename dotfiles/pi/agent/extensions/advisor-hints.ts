@@ -69,8 +69,7 @@ function getExitCode(
   details: { exitCode?: number } | undefined,
   isError: boolean | undefined,
 ): number {
-  if (typeof details?.exitCode === "number") return details.exitCode;
-  return isError ? 1 : 0;
+  return details?.exitCode ?? (isError ? 1 : 0);
 }
 
 function updateFailureState(normalized: string, exitCode: number): void {
@@ -98,11 +97,13 @@ function handleBashToolResult(event: {
 }
 
 function handleAdvisorToolResult(): void {
-  const hadBlockageSteer = blockageSteerSent;
+  log("advisor-hints", "advisor", {
+    sessionId,
+    hadBlockageSteer: blockageSteerSent,
+  });
   lastNormalizedCommand = "";
   consecutiveFailures = 0;
   blockageSteerSent = false;
-  log("advisor-hints", "advisor", { sessionId, hadBlockageSteer });
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +116,6 @@ export default function (pi: ExtensionAPI) {
     consecutiveFailures = 0;
     blockageSteerSent = false;
     keywordDetected = false;
-    sessionId = "";
 
     const sessionFile = ctx.sessionManager.getSessionFile();
     const basename = (sessionFile ?? "").split("/").pop() ?? "";
@@ -127,7 +127,6 @@ export default function (pi: ExtensionAPI) {
   pi.on("input", async (event) => {
     if (event.source === "extension") return;
 
-    // Reset for this input; only set if a keyword matches below
     keywordDetected = false;
 
     for (const kw of KEYWORDS) {
@@ -176,11 +175,19 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  pi.on("agent_end", async () => {
+  pi.on("agent_end", async (_event, ctx) => {
     if (keywordDetected) {
-      pi.sendUserMessage(FOLLOWUP_MESSAGE, { deliverAs: "followUp" });
-      log("advisor-hints", "followup-sent", { sessionId });
       keywordDetected = false;
+      log("advisor-hints", "followup-sent", { sessionId });
+
+      const sendWhenIdle = (): void => {
+        if (ctx.isIdle()) {
+          pi.sendUserMessage(FOLLOWUP_MESSAGE);
+        } else {
+          setTimeout(sendWhenIdle, 5);
+        }
+      };
+      setTimeout(sendWhenIdle, 0);
     }
   });
 }
