@@ -6,8 +6,71 @@ import { log } from "./shared/logger.js";
 // ---------------------------------------------------------------------------
 
 const CONSECUTIVE_FAILURE_THRESHOLD = 2;
-const KEYWORDS = ["opsx-propose", "opsx-apply"];
+const KEYWORDS = [
+  "opsx-propose",
+  "opsx-apply",
+  "Perform a focused code review",
+];
 const HINT = "Use `advisor` before continuing.";
+
+/** Regex that matches real command separators but NOT bare `&`. */
+const SEPARATOR_RE = /(?:&&|\|\||;|\|&|\|)/;
+
+/**
+ * Set of simple Unix commands that produce benign failures
+ * (e.g., file not found, no match, directory missing).
+ * Failures from commands whose first token (in every compound segment)
+ * is in this set are excluded from consecutive-failure tracking.
+ */
+const SIMPLE_COMMANDS = new Set([
+  // Navigation
+  "cd",
+  "pushd",
+  "popd",
+  // Listing / search
+  "ls",
+  "find",
+  "tree",
+  "grep",
+  "rg",
+  "egrep",
+  "fgrep",
+  // Reading / display
+  "cat",
+  "head",
+  "tail",
+  "less",
+  "more",
+  "bat",
+  // File operations
+  "touch",
+  "mkdir",
+  "rmdir",
+  "cp",
+  "mv",
+  "rm",
+  "ln",
+  "chmod",
+  "chown",
+  // Shell state / info
+  "echo",
+  "printf",
+  "type",
+  "which",
+  "source",
+  // Booleans
+  "test",
+  "true",
+  "false",
+  // Path utilities
+  "dirname",
+  "basename",
+  "readlink",
+  "realpath",
+  // Other common
+  "pwd",
+  "date",
+]);
 
 // ---------------------------------------------------------------------------
 // Normalization helpers
@@ -47,6 +110,26 @@ function normalizeCommand(command: string): string {
   return skipFlagValues(tokens)
     .filter((t) => !isIgnoredToken(t))
     .join(" ");
+}
+
+/**
+ * Returns `true` when every segment of a compound command starts with a
+ * simple (blocklisted) command.  Compound commands use `&&`, `||`, `;`,
+ * `|`, or `|&` as separators.  If ANY segment starts with a non-blocklisted
+ * command the whole command is considered "trackable".
+ *
+ * The regex deliberately avoids matching bare `&` so that shell
+ * redirections like `2>&1` are not split into phantom segments.
+ */
+function isSimpleCommand(command: string): boolean {
+  const segments = command.split(SEPARATOR_RE);
+  if (segments.length === 0) return true;
+  return segments.every((segment) => {
+    const trimmed = segment.trim();
+    if (trimmed === "") return true;
+    const firstToken = trimmed.split(/\s+/)[0];
+    return firstToken !== undefined && SIMPLE_COMMANDS.has(firstToken);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +172,9 @@ function handleBashToolResult(event: {
   isError?: boolean;
   input?: { command?: string };
 }): void {
-  const normalized = normalizeCommand(event.input?.command ?? "");
+  const raw = event.input?.command ?? "";
+  if (isSimpleCommand(raw)) return;
+  const normalized = normalizeCommand(raw);
   updateFailureState(normalized, getExitCode(event));
 }
 

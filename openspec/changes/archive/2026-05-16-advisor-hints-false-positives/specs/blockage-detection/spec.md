@@ -1,10 +1,4 @@
-# blockage-detection Specification
-
-## Purpose
-
-The blockage-detection capability tracks consecutive same-command bash failures and injects a steer message when a configured threshold is reached, helping the agent recognize when it is stuck.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Detect consecutive same-command bash failures and send blockage steer
 
@@ -128,14 +122,7 @@ The steer message text SHALL be hardcoded and not include the specific command o
 - **AND** then executes `npm test` again (fails, counter becomes 2)
 - **THEN** the extension SHALL inject a blockage steer at `turn_end`
 
-### Requirement: Blockage steer uses a configured threshold
-
-The consecutive failure threshold SHALL be defined as a module-level constant.
-
-#### Scenario: Threshold is hardcoded
-
-- **WHEN** the extension is loaded
-- **THEN** the consecutive failure threshold SHALL default to 2
+## ADDED Requirements
 
 ### Requirement: Skip failure tracking for simple commands
 

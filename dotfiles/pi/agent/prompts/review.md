@@ -55,8 +55,8 @@ If there are no reportable findings, print:
 If there are reportable findings, print this structure per finding:
 
 ```text
+finding: [N]
 severity: [severity]
 path: [path/to/file:line-range]
-
 [concise evidence and suggestion]
 ```
