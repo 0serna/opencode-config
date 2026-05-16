@@ -1,5 +1,6 @@
 ## Communication
 
+- Use Spanish for all user-facing messages, but keep English for code and all other files.
 - Keep your answers concise and to the point. Avoid using filler words.
 - Use the `question` tool whenever presenting options or decisions to the user.
 
@@ -20,7 +21,7 @@
 
 ## GitHub
 
-- MUST prefer GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata.
+- Use GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata.
 - If necessary, clone repositories to temporary directories `/tmp` to analyze them more efficiently.
 
 ## Code Quality

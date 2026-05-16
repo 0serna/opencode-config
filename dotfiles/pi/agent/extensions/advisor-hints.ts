@@ -6,10 +6,8 @@ import { log } from "./shared/logger.js";
 // ---------------------------------------------------------------------------
 
 const CONSECUTIVE_FAILURE_THRESHOLD = 2;
-const BLOCKAGE_MESSAGE =
-  "You've had repeated failures. Call `advisor` for guidance.";
 const KEYWORDS = ["opsx-propose", "opsx-apply"];
-const FOLLOWUP_MESSAGE = "Call `advisor` to review the work before finishing.";
+const HINT = "Use `advisor` before continuing.";
 
 // ---------------------------------------------------------------------------
 // Normalization helpers
@@ -65,11 +63,11 @@ let sessionId = "";
 // Tool-result helpers
 // ---------------------------------------------------------------------------
 
-function getExitCode(
-  details: { exitCode?: number } | undefined,
-  isError: boolean | undefined,
-): number {
-  return details?.exitCode ?? (isError ? 1 : 0);
+function getExitCode(event: {
+  details?: { exitCode?: number };
+  isError?: boolean;
+}): number {
+  return event.details?.exitCode ?? (event.isError ? 1 : 0);
 }
 
 function updateFailureState(normalized: string, exitCode: number): void {
@@ -91,19 +89,8 @@ function handleBashToolResult(event: {
   isError?: boolean;
   input?: { command?: string };
 }): void {
-  const exitCode = getExitCode(event.details, event.isError);
   const normalized = normalizeCommand(event.input?.command ?? "");
-  updateFailureState(normalized, exitCode);
-}
-
-function handleAdvisorToolResult(): void {
-  log("advisor-hints", "advisor", {
-    sessionId,
-    hadBlockageSteer: blockageSteerSent,
-  });
-  lastNormalizedCommand = "";
-  consecutiveFailures = 0;
-  blockageSteerSent = false;
+  updateFailureState(normalized, getExitCode(event));
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +137,13 @@ export default function (pi: ExtensionAPI) {
     }
 
     if (event.toolName === "advisor") {
-      handleAdvisorToolResult();
+      log("advisor-hints", "advisor", {
+        sessionId,
+        hadBlockageSteer: blockageSteerSent,
+      });
+      lastNormalizedCommand = "";
+      consecutiveFailures = 0;
+      blockageSteerSent = false;
     }
   });
 
@@ -158,14 +151,7 @@ export default function (pi: ExtensionAPI) {
     if (blockageSteerSent) return;
 
     if (consecutiveFailures >= CONSECUTIVE_FAILURE_THRESHOLD) {
-      pi.sendMessage(
-        {
-          customType: "advisor-blockage",
-          content: BLOCKAGE_MESSAGE,
-          display: true,
-        },
-        { deliverAs: "steer" },
-      );
+      pi.sendUserMessage(HINT, { deliverAs: "steer" });
       blockageSteerSent = true;
       log("advisor-hints", "blockage", {
         sessionId,
@@ -182,7 +168,7 @@ export default function (pi: ExtensionAPI) {
 
       const sendWhenIdle = (): void => {
         if (ctx.isIdle()) {
-          pi.sendUserMessage(FOLLOWUP_MESSAGE);
+          pi.sendUserMessage(HINT);
         } else {
           setTimeout(sendWhenIdle, 5);
         }
