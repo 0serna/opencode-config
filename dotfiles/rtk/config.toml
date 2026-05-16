@@ -32,7 +32,7 @@ max_file_size = 1048576
 enabled = false
 
 [hooks]
-exclude_commands = ["git diff"]
+exclude_commands = ["git commit"]
 
 [limits]
 grep_max_results = 200
