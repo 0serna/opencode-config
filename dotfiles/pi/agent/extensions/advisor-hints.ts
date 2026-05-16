@@ -93,6 +93,19 @@ function handleBashToolResult(event: {
   updateFailureState(normalized, getExitCode(event));
 }
 
+function sendBlockageSteer(api: ExtensionAPI): void {
+  if (blockageSteerSent) return;
+  if (consecutiveFailures < CONSECUTIVE_FAILURE_THRESHOLD) return;
+
+  api.sendUserMessage(HINT, { deliverAs: "steer" });
+  blockageSteerSent = true;
+  log("advisor-hints", "blockage", {
+    sessionId,
+    command: lastNormalizedCommand,
+    failureCount: consecutiveFailures,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Extension entry point
 // ---------------------------------------------------------------------------
@@ -126,14 +139,14 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("agent_start", async () => {
-    lastNormalizedCommand = "";
-    consecutiveFailures = 0;
     blockageSteerSent = false;
   });
 
   pi.on("tool_result", async (event) => {
     if (event.toolName === "bash") {
       handleBashToolResult(event);
+
+      sendBlockageSteer(pi);
     }
 
     if (event.toolName === "advisor") {
@@ -148,17 +161,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("turn_end", async () => {
-    if (blockageSteerSent) return;
-
-    if (consecutiveFailures >= CONSECUTIVE_FAILURE_THRESHOLD) {
-      pi.sendUserMessage(HINT, { deliverAs: "steer" });
-      blockageSteerSent = true;
-      log("advisor-hints", "blockage", {
-        sessionId,
-        command: lastNormalizedCommand,
-        failureCount: consecutiveFailures,
-      });
-    }
+    sendBlockageSteer(pi);
   });
 
   pi.on("agent_end", async (_event, ctx) => {
