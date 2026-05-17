@@ -8,7 +8,8 @@
     "check": "eslint . && tsc --noEmit && fallow --production-health && openspec validate --all",
     "format": "prettier --write .",
     "test": "vitest run",
-    "prepare": "husky"
+    "prepare": "husky",
+    "sync-pi-settings": "bash scripts/publish-pi-settings.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

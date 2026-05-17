@@ -1,8 +1,8 @@
 {
   "lastChangelogVersion": "0.74.1",
-  "defaultProvider": "openai-codex",
-  "defaultThinkingLevel": "low",
-  "defaultModel": "gpt-5.5",
+  "defaultProvider": "opencode-go",
+  "defaultModel": "deepseek-v4-flash",
+  "defaultThinkingLevel": "high",
   "enabledModels": ["opencode-go/deepseek-v4-flash", "openai-codex/gpt-5.5"],
   "hideThinkingBlock": true,
   "doubleEscapeAction": "tree",
