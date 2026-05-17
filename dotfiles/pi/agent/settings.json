@@ -1,11 +1,12 @@
 {
   "lastChangelogVersion": "0.74.1",
   "defaultProvider": "openai-codex",
-  "defaultThinkingLevel": "off",
+  "defaultThinkingLevel": "low",
   "defaultModel": "gpt-5.5",
   "enabledModels": ["opencode-go/deepseek-v4-flash", "openai-codex/gpt-5.5"],
   "hideThinkingBlock": true,
   "doubleEscapeAction": "tree",
   "enableSkillCommands": false,
-  "quietStartup": true
+  "quietStartup": true,
+  "packages": ["npm:@howaboua/pi-auto-reasoning-tool"]
 }
