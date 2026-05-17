@@ -1,9 +1,9 @@
 ---
-name: command-authoring
+name: command-prompt-standards
 description: Create, review, and maintain command/prompt files using the shared structure. Use when adding or updating custom slash commands/prompts.
 ---
 
-# Command/Prompt Authoring
+# Command/Prompt Standards
 
 Use this skill when creating, reviewing, or updating OpenCode command files and Pi prompt files.
 
