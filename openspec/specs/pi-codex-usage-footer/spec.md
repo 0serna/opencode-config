@@ -14,7 +14,8 @@ The Pi footer SHALL display Codex quota headroom in a compact status string that
 
 - **WHEN** the system has current Codex quota data for remaining five-hour quota, remaining seven-day quota, and remaining credits
 - **THEN** the footer displays all three values in one compact Codex status string
-- **AND** the string labels the quota windows as `5h` and `7d`
+- **AND** the string labels each quota window with its exact reset time in `(H:mm)` format (12-hour, no AM/PM)
+- **AND** when a quota window resets after the current calendar day, the string prepends the English day abbreviation: `(Mon H:mm)`
 - **AND** the string labels credits as `cr`
 
 #### Scenario: Credits are unavailable

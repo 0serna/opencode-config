@@ -31,8 +31,8 @@ type CodexQuotaStatus = {
   remaining5h?: number;
   remaining7d?: number;
   remainingCredits?: number;
-  resetAfter5h?: number;
-  resetAfter7d?: number;
+  resetAt5h?: number;
+  resetAt7d?: number;
 };
 
 type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
@@ -151,26 +151,39 @@ async function callCodexUsageApi(
 }
 
 // ---------------------------------------------------------------------------
-// Duration formatting
+// Reset time formatting
 // ---------------------------------------------------------------------------
 
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return "<1m";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
-  return `${(seconds / 86400).toFixed(1)}d`;
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function formatResetTime(resetAt: number): string {
+  const date = new Date(resetAt * 1000);
+  const h12 = date.getHours() % 12 || 12;
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const timeStr = `${h12}:${minutes}`;
+
+  if (date.toDateString() === new Date().toDateString()) return `(${timeStr})`;
+  return `(${DAY_NAMES[date.getDay()]} ${timeStr})`;
 }
 
 // ---------------------------------------------------------------------------
 // Status formatting
 // ---------------------------------------------------------------------------
 
+function buildSegmentString(
+  label: string,
+  value: number,
+  suffix: string,
+): string {
+  return suffix ? `${value}${suffix} ${label}` : `${label} ${value}${suffix}`;
+}
+
 type SegmentConfig = {
   key: keyof CodexQuotaStatus;
   suffix: string;
   /** Default label. Overridden by resetField when available. */
   label?: string;
-  /** If set, compute dynamic label from this reset-duration field. */
+  /** If set, compute dynamic label (reset time) from this timestamp field. */
   resetField?: keyof CodexQuotaStatus;
   /** Warn (mdHeading) when value drops below this threshold. Omit to never warn. */
   warnThreshold?: number;
@@ -180,15 +193,13 @@ const QUOTA_SEGMENTS: SegmentConfig[] = [
   {
     key: "remaining5h",
     suffix: "%",
-    resetField: "resetAfter5h",
-    label: "5h",
+    resetField: "resetAt5h",
     warnThreshold: 25,
   },
   {
     key: "remaining7d",
     suffix: "%",
-    resetField: "resetAfter7d",
-    label: "7d",
+    resetField: "resetAt7d",
     warnThreshold: 10,
   },
   {
@@ -203,18 +214,10 @@ function getSegmentLabel(
   status: CodexQuotaStatus,
 ): string {
   if (segment.resetField) {
-    const resetSeconds = status[segment.resetField];
-    if (resetSeconds != null) return formatDuration(resetSeconds);
+    const resetAt = status[segment.resetField];
+    if (resetAt != null) return formatResetTime(resetAt);
   }
   return segment.label ?? "?";
-}
-
-function buildSegmentString(
-  label: string,
-  value: number,
-  suffix: string,
-): string {
-  return suffix ? `${value}${suffix} ${label}` : `${label} ${value}${suffix}`;
 }
 
 function formatCodexQuotaSegment(
@@ -253,10 +256,10 @@ function getCreditsFromResponse(
   return parseCredits(credits.balance, credits.unlimited);
 }
 
-function resetSeconds(
+function resetTimestamp(
   window: CodexUsageWindow | undefined,
 ): number | undefined {
-  return window?.reset_after_seconds;
+  return window?.reset_at;
 }
 
 function buildStatusFromUsage(usage: CodexUsageResponse): CodexQuotaStatus {
@@ -267,8 +270,8 @@ function buildStatusFromUsage(usage: CodexUsageResponse): CodexQuotaStatus {
     remaining5h: toRemainingPercent(primary),
     remaining7d: toRemainingPercent(secondary),
     remainingCredits: getCreditsFromResponse(usage.credits),
-    resetAfter5h: resetSeconds(primary),
-    resetAfter7d: resetSeconds(secondary),
+    resetAt5h: resetTimestamp(primary),
+    resetAt7d: resetTimestamp(secondary),
   };
 }
 
@@ -298,11 +301,6 @@ async function fetchCodexQuotaStatus(
 // Status publish helpers
 // ---------------------------------------------------------------------------
 
-function getStatusText(ctx: ExtensionContext): string | undefined {
-  if (!lastStatus) return undefined;
-  return formatCodexQuotaStatus(lastStatus, ctx) ?? undefined;
-}
-
 function setStatusSafely(
   ctx: ExtensionContext,
   reason: string,
@@ -323,7 +321,7 @@ function publishStatus(ctx: ExtensionContext, reason: string): void {
     log("codex-quota", "status_skipped", { reason });
     return;
   }
-  const statusText = getStatusText(ctx);
+  const statusText = formatCodexQuotaStatus(lastStatus, ctx) ?? undefined;
   log("codex-quota", "status_published", { reason, status: statusText });
   setStatusSafely(ctx, reason, statusText);
 }
