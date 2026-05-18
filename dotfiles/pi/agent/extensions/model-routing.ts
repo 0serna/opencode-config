@@ -11,31 +11,25 @@ type ModelRoute = {
   thinkingLevel: ThinkingLevel;
 };
 
+const DEFAULT_THINKING: ThinkingLevel = "medium";
+
 const DEFAULT_ROUTE: ModelRoute = {
   model: "opencode-go/deepseek-v4-flash",
   thinkingLevel: "high",
 };
 
 const MODEL_ROUTES = {
+  "/opsx-explore": {
+    model: "opencode-go/qwen3.6-plus",
+    thinkingLevel: "medium",
+  },
   "/simplify": {
     model: "opencode-go/deepseek-v4-flash",
-    thinkingLevel: "high",
+    thinkingLevel: "xhigh",
   },
   "/review": {
-    model: "openai-codex/gpt-5.5",
-    thinkingLevel: "low",
-  },
-  "/commit": {
-    model: "opencode-go/deepseek-v4-flash",
-    thinkingLevel: "high",
-  },
-  "/opsx-explore": {
-    model: "openai-codex/gpt-5.5",
-    thinkingLevel: "low",
-  },
-  "/opsx-archive": {
-    model: "opencode-go/deepseek-v4-flash",
-    thinkingLevel: "high",
+    model: "opencode-go/qwen3.6-plus",
+    thinkingLevel: "medium",
   },
 } as const satisfies Record<string, ModelRoute>;
 
@@ -122,5 +116,11 @@ export default function (pi: ExtensionAPI) {
       await pi.setModel(snapshot.model);
     }
     pi.setThinkingLevel(snapshot.thinkingLevel);
+  });
+
+  pi.on("model_select", (event) => {
+    if (event.source === "set" || event.source === "cycle") {
+      pi.setThinkingLevel(DEFAULT_THINKING);
+    }
   });
 }
