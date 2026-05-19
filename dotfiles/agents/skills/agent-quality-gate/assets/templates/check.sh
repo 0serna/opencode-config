@@ -5,8 +5,6 @@
 # block is suppressed; only failures emit their delimited output. The
 # summary always shows all results and the exit code is 0 only when every
 # tool passes.
-#
-# Customize the example tool runs below for the target repo.
 
 PATH="$(cd "$(dirname "$0")/.." && pwd)/node_modules/.bin:$PATH"
 
@@ -26,11 +24,10 @@ run_tool() {
 
 status() { [ $1 -eq 0 ] && echo PASS || echo FAIL; }
 
-# --- Tools from the repo check, preserved verbatim or adapted ---
-run_tool lint:strict npm run lint:strict
-LINT_STRICT_EXIT=$?
-run_tool validate-docs ./scripts/validate-docs.sh
-VALIDATE_DOCS_EXIT=$?
+# --- Non-default tools from the repo check, preserved verbatim ---
+# Replace each with: run_tool <name> <command>
+# EXAMPLE: run_tool lint:strict npm run lint:strict
+# EXAMPLE: run_tool validate-docs ./scripts/validate-docs.sh
 
 # --- Default tools with agent-friendly output ---
 run_tool eslint eslint . --format json
@@ -43,12 +40,11 @@ run_tool openspec openspec validate --all --json
 OPENSPEC_EXIT=$?
 
 echo "---CHECK:SUMMARY---"
-echo "lint:strict: $(status $LINT_STRICT_EXIT)"
-echo "validate-docs: $(status $VALIDATE_DOCS_EXIT)"
 echo "eslint: $(status $ESLINT_EXIT)"
 echo "tsc: $(status $TSC_EXIT)"
 echo "fallow: $(status $FALLOW_EXIT)"
 echo "openspec: $(status $OPENSPEC_EXIT)"
 echo "---CHECK:DONE---"
 
-exit $((LINT_STRICT_EXIT || VALIDATE_DOCS_EXIT || ESLINT_EXIT || TSC_EXIT || FALLOW_EXIT || OPENSPEC_EXIT))
+# Add non-default tool exit vars here if any were added above
+exit $((ESLINT_EXIT || TSC_EXIT || FALLOW_EXIT || OPENSPEC_EXIT))

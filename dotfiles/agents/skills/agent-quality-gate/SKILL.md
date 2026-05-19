@@ -20,6 +20,7 @@ Use this skill when the user asks to create, improve, or modify the project's qu
 - Read `.husky/pre-commit` if it exists
 - Read config files for detectable tools:
   - `eslint.config.*`, `tsconfig.json`, `.fallowrc.*`, `fallow.config.*`, `openspec.yaml`, `.openspec.yaml`
+- Detect monorepo orchestrator configs: `nx.json`, `turbo.json`, `lerna.json`, or `workspaces` in `package.json`
 
 ### 2. Detect existing quality gate elements
 
@@ -52,7 +53,7 @@ If `test` is applicable (test framework installed or existing test script) but n
 
 For each default tool (eslint, tsc, fallow, openspec):
 
-- **Directly present** in the parsed check segments (its own command) → **adapt** it: add or adjust flags to produce agent-friendly output (see table below)
+- **If directly present** in the parsed check segments (its own command) → **adapt** it: add or adjust flags to produce agent-friendly output (see table below)
 - **Covered by an opaque segment** (e.g., eslint inside `nx run-many -t lint`) → leave it; the opaque segment already covers it
 - **Not in the check at all** but installed → **auto-configure** with the full command from the table
 - **Not installed** → if the user agreed to install in step 3, treat as auto-configured; otherwise ask separately
@@ -121,6 +122,7 @@ Also run `npm run format` to confirm the format script works, and check that `.h
 - **Only expand `npm run <name>` scripts one level deep**. Do not recursively resolve chains.
 - **Preserve opaque commands verbatim**. If a check segment is not a recognizable default tool, preserve it wrapped in `run_tool` without modifying flags.
 - **Do not change fail-fast semantics**. The generated script runs all tools regardless of exit code.
+- **Do not add `set -e` to the script**. The fail-slow pattern depends on all tools running even after failures; `set -e` would abort execution on the first non-zero exit.
 - **Keep script files executable**: `chmod +x <scripts-dir>/check.sh` and `chmod +x .husky/pre-commit`.
 - **Use `bash` universally** in `package.json` scripts regardless of the detected package manager.
 
