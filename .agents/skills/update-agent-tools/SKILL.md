@@ -1,0 +1,50 @@
+---
+name: update-agent-tools
+description: Update curated global/local agent tooling used by these dotfiles. Use when asked to refresh agent CLIs or binaries.
+---
+
+Update the curated agent tools used by this dotfiles repository. This skill updates installed tools only; it must not modify repository files, regenerate generated content, or broaden the tool list by scanning for new commands. Only version is reported per tool — paths are intentionally omitted.
+
+## Scope
+
+Update these tools with these exact methods:
+
+| Tool         | Method                             | Version check          |
+| ------------ | ---------------------------------- | ---------------------- |
+| `playwriter` | `npm install -g playwriter@latest` | `playwriter --version` |
+| `rtk`        | `brew upgrade rtk`                 | `rtk --version`        |
+| `ctx7`       | `npm install -g ctx7@latest`       | `ctx7 --version`       |
+| `skills`     | `npx skills update -g -y`          | `npx skills --version` |
+
+## Workflow
+
+1. Capture the pre-update version for each scoped tool using the version check from the scope table. If the version command fails, record `not found` or `not verifiable`; do not stop.
+
+2. Run every update method from the scope table directly, without asking for confirmation.
+
+3. Continue to the next tool if an update command fails.
+
+4. After `npx skills update -g -y` completes, parse its output to identify which skills were updated (lines matching `✓ Updated <skill-name>`).
+
+5. Capture the post-update version using the same checks as step 1.
+
+6. Return a compact summary for every tool (versions only, no paths). If skills were updated, list which ones.
+
+## Failure Handling
+
+- If `brew upgrade rtk` reports already up-to-date, count that as OK.
+- If `brew upgrade rtk` fails (formula unavailable, Homebrew missing, etc.), count only `rtk` as failed and continue.
+- If `npm install -g ...` or `npx skills update -g -y` fails, count only the affected tool as failed and continue.
+- Version checks are best effort. A failed version check is not an update failure when the update command itself succeeded.
+
+## Output
+
+Return a concise summary with one row per tool:
+
+- tool name
+- update method
+- status: OK or failed
+- version before and after, or `not verifiable`
+- any short failure message
+
+If skills were updated, list which ones.
