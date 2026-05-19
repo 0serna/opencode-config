@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "link": "tsx src/dotfiles-installer.ts",
-    "check": "eslint . && tsc --noEmit && fallow --production-health && openspec validate --all",
+    "check": "bash scripts/check.sh",
     "format": "prettier --write .",
     "test": "vitest run",
     "prepare": "husky",
