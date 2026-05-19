@@ -97,13 +97,9 @@ Before drafting or reviewing, investigate existing context so instructions are c
 uvx --from git+https://github.com/agentskills/agentskills#subdirectory=skills-ref skills-ref validate ~/.agents/skills/<name>
 ```
 
-If `skills-ref` is already installed locally, prefer the direct command:
+Always use this `uvx` command, even if `skills-ref` is already installed locally.
 
-```bash
-skills-ref validate ~/.agents/skills/<name>
-```
-
-Validation must pass before considering a skill complete. If neither `uvx` nor `skills-ref` is available (no network), report the blocker — do not skip.
+Validation must pass before considering a skill complete. If `uvx` is unavailable or cannot fetch `skills-ref`, report the blocker — do not skip.
 
 > `skills-ref validate` checks structure and frontmatter but **not** file references. Reference integrity is verified manually in the review workflow step 4.
 
@@ -135,7 +131,7 @@ Validation must pass before considering a skill complete. If neither `uvx` nor `
 | **Grounded**               | Based on project-specific context, not generic knowledge                        |
 | **Defaults, not menus**    | Pick one default approach; mention alternatives briefly                         |
 | **Concrete gotchas**       | List corrections to mistakes the agent would make without them                  |
-| **Validation gate**        | `skills-ref validate` passes; reference integrity confirmed                     |
+| **Validation gate**        | the required `uvx` validation command passes; reference integrity confirmed     |
 | **Specific instructions**  | No "handle errors appropriately" — say what to do for each failure mode         |
 | **Trigger precision**      | Description covers scope without false-positive near-misses                     |
 | **Minimal frontmatter**    | Only `name` and `description` unless there is a documented reason for more      |
